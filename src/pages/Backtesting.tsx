@@ -8,7 +8,7 @@ import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, ExternalLink, Imag
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
 import { toast } from "sonner";
 
 interface BacktestTrade {
@@ -131,9 +131,27 @@ const Backtesting = () => {
     });
   };
 
+  const getEquityCurveData = () => {
+    const sortedTrades = [...trades]
+      .filter(t => !t.no_trade_day)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let cumulativeEquity = 0;
+    return sortedTrades.map((trade) => {
+      cumulativeEquity += Number(trade.result_dollars);
+      return {
+        date: new Date(trade.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
+        equity: Number(cumulativeEquity.toFixed(2)),
+        fullDate: trade.date
+      };
+    });
+  };
+
+
   const metrics = calculateMetrics();
   const modelData = getAnalysisByEntryModel();
   const dayData = getAnalysisByDayOfWeek();
+  const equityData = getEquityCurveData();
 
   if (loading) {
     return (
@@ -316,6 +334,49 @@ const Backtesting = () => {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Equity Curve */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Curva de Equity - Backtesting</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {equityData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={equityData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Equity ($)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
+                    labelFormatter={(label) => `Fecha: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="equity" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+                No hay operaciones registradas todavía
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
