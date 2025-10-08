@@ -17,6 +17,7 @@ export type Database = {
       trades: {
         Row: {
           created_at: string | null
+          custom_news_description: string | null
           date: string
           day_of_week: string
           entry_model: string
@@ -37,6 +38,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          custom_news_description?: string | null
           date: string
           day_of_week: string
           entry_model: string
@@ -57,6 +59,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          custom_news_description?: string | null
           date?: string
           day_of_week?: string
           entry_model?: string

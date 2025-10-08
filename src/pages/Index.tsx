@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
+import { ReportGenerator } from "@/components/ReportGenerator";
 import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,11 +15,20 @@ import { cn } from "@/lib/utils";
 interface Trade {
   id: string;
   date: string;
-  entry_time: string;
-  trade_type: string;
-  result_type: string;
-  entry_model: string;
-  result_dollars: number;
+  day_of_week: string;
+  entry_time: string | null;
+  exit_time: string | null;
+  trade_type: string | null;
+  result_type: string | null;
+  entry_model: string | null;
+  result_dollars: number | null;
+  had_news: boolean;
+  news_description: string | null;
+  custom_news_description: string | null;
+  news_time: string | null;
+  execution_timing: string | null;
+  no_trade_day: boolean;
+  image_link: string | null;
 }
 
 export default function Index() {
@@ -56,25 +66,26 @@ export default function Index() {
     setLoading(false);
   };
 
+  const actualTrades = trades.filter(t => !t.no_trade_day);
   const stats = {
-    totalPnL: trades.reduce((sum, t) => sum + Number(t.result_dollars), 0),
-    totalTrades: trades.length,
-    winningTrades: trades.filter(t => t.result_type === "TP").length,
-    losingTrades: trades.filter(t => t.result_type === "SL").length,
-    m1Trades: trades.filter(t => t.entry_model === "M1"),
-    m3Trades: trades.filter(t => t.entry_model === "M3"),
-    contTrades: trades.filter(t => t.entry_model === "Continuación"),
+    totalPnL: actualTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0),
+    totalTrades: actualTrades.length,
+    winningTrades: actualTrades.filter(t => t.result_type === "TP").length,
+    losingTrades: actualTrades.filter(t => t.result_type === "SL").length,
+    m1Trades: actualTrades.filter(t => t.entry_model === "M1"),
+    m3Trades: actualTrades.filter(t => t.entry_model === "M3"),
+    contTrades: actualTrades.filter(t => t.entry_model === "Continuación"),
   };
 
   const winRate = stats.totalTrades > 0 ? ((stats.winningTrades / stats.totalTrades) * 100).toFixed(1) : 0;
 
   // Prepare equity curve data
   let cumulative = 0;
-  const equityCurve = trades
+  const equityCurve = actualTrades
     .slice()
     .reverse()
     .map((trade, index) => {
-      cumulative += Number(trade.result_dollars);
+      cumulative += (trade.result_dollars || 0);
       return {
         trade: index + 1,
         equity: cumulative,
@@ -87,6 +98,11 @@ export default function Index() {
       <Header userName={user?.email} />
       
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Report Download Button */}
+        <div className="flex justify-end">
+          <ReportGenerator trades={trades} />
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatsCard
@@ -186,17 +202,23 @@ export default function Index() {
                     {trades.map((trade) => (
                       <TableRow key={trade.id}>
                         <TableCell>{trade.date}</TableCell>
-                        <TableCell>{trade.entry_time}</TableCell>
+                        <TableCell>{trade.entry_time || "N/A"}</TableCell>
                         <TableCell>
-                          <Badge variant={trade.trade_type === "Compra" ? "default" : "secondary"}>
-                            {trade.trade_type}
-                          </Badge>
+                          {trade.no_trade_day ? (
+                            <Badge variant="outline" className="text-warning">Sin Entrada</Badge>
+                          ) : (
+                            <Badge variant={trade.trade_type === "Compra" ? "default" : "secondary"}>
+                              {trade.trade_type}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{trade.entry_model}</Badge>
+                          <Badge variant="outline">{trade.entry_model || "N/A"}</Badge>
                         </TableCell>
                         <TableCell>
-                          {trade.result_type === "TP" ? (
+                          {trade.no_trade_day ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : trade.result_type === "TP" ? (
                             <div className="flex items-center gap-1 text-success">
                               <TrendingUp className="h-4 w-4" />
                               <span className="font-medium">TP</span>
@@ -210,9 +232,9 @@ export default function Index() {
                         </TableCell>
                         <TableCell className={cn(
                           "text-right font-mono font-medium",
-                          Number(trade.result_dollars) >= 0 ? "text-success" : "text-destructive"
+                          trade.no_trade_day ? "text-muted-foreground" : (trade.result_dollars || 0) >= 0 ? "text-success" : "text-destructive"
                         )}>
-                          ${Number(trade.result_dollars).toFixed(2)}
+                          {trade.no_trade_day ? "-" : `$${(trade.result_dollars || 0).toFixed(2)}`}
                         </TableCell>
                       </TableRow>
                     ))}

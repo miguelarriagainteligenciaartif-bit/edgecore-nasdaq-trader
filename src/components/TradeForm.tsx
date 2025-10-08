@@ -21,6 +21,7 @@ const formSchema = z.object({
   result_type: z.enum(["TP", "SL"]).optional(),
   had_news: z.boolean().default(false),
   news_description: z.enum(["NFP", "CPI", "PMI Servicios", "PMI Manufacturing", "PCE", "Flash PMI", "FOMC", "Ventas Minoristas", "Otra"]).optional(),
+  custom_news_description: z.string().optional(),
   news_time: z.enum(["08:30", "09:45", "10:00"]).optional(),
   execution_timing: z.enum(["Antes de noticia", "Después de noticia"]).optional(),
   entry_model: z.enum(["M1", "M3", "Continuación"]).optional(),
@@ -46,6 +47,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
 
   const noTradeDay = form.watch("no_trade_day");
   const hadNews = form.watch("had_news");
+  const newsDescription = form.watch("news_description");
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
@@ -64,6 +66,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
         result_type: values.result_type || null,
         had_news: values.had_news,
         news_description: values.news_description || null,
+        custom_news_description: values.custom_news_description || null,
         news_time: values.news_time || null,
         execution_timing: values.execution_timing || null,
         entry_model: values.entry_model || null,
@@ -272,80 +275,98 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
             />
 
             {hadNews && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="news_description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>¿Cuál noticia?</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona noticia" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="NFP">NFP (Non-Farm Payrolls)</SelectItem>
-                          <SelectItem value="CPI">CPI (Consumer Price Index)</SelectItem>
-                          <SelectItem value="PMI Servicios">PMI Servicios</SelectItem>
-                          <SelectItem value="PMI Manufacturing">PMI Manufacturing</SelectItem>
-                          <SelectItem value="PCE">PCE (Personal Consumption)</SelectItem>
-                          <SelectItem value="Flash PMI">Flash PMI</SelectItem>
-                          <SelectItem value="FOMC">FOMC</SelectItem>
-                          <SelectItem value="Ventas Minoristas">Ventas Minoristas</SelectItem>
-                          <SelectItem value="Otra">Otra</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="news_description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>¿Cuál noticia?</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona noticia" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="NFP">NFP (Non-Farm Payrolls)</SelectItem>
+                            <SelectItem value="CPI">CPI (Consumer Price Index)</SelectItem>
+                            <SelectItem value="PMI Servicios">PMI Servicios</SelectItem>
+                            <SelectItem value="PMI Manufacturing">PMI Manufacturing</SelectItem>
+                            <SelectItem value="PCE">PCE (Personal Consumption)</SelectItem>
+                            <SelectItem value="Flash PMI">Flash PMI</SelectItem>
+                            <SelectItem value="FOMC">FOMC</SelectItem>
+                            <SelectItem value="Ventas Minoristas">Ventas Minoristas</SelectItem>
+                            <SelectItem value="Otra">Otra</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="news_time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hora de Noticia (NY)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Hora" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="08:30">8:30 AM</SelectItem>
-                          <SelectItem value="09:45">9:45 AM</SelectItem>
-                          <SelectItem value="10:00">10:00 AM</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="news_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Hora de Noticia (NY)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Hora" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="08:30">8:30 AM</SelectItem>
+                            <SelectItem value="09:45">9:45 AM</SelectItem>
+                            <SelectItem value="10:00">10:00 AM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="execution_timing"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Timing de Ejecución</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormField
+                    control={form.control}
+                    name="execution_timing"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Timing de Ejecución</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Antes/Después" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Antes de noticia">Antes de noticia</SelectItem>
+                            <SelectItem value="Después de noticia">Después de noticia</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {newsDescription === "Otra" && (
+                  <FormField
+                    control={form.control}
+                    name="custom_news_description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Especifica qué noticia</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Antes/Después" />
-                          </SelectTrigger>
+                          <Input placeholder="Ej: GDP, Unemployment Claims, etc." {...field} />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Antes de noticia">Antes de noticia</SelectItem>
-                          <SelectItem value="Después de noticia">Después de noticia</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             )}
 
