@@ -27,6 +27,8 @@ export type Database = {
           id: string
           image_link: string | null
           news_description: string | null
+          news_time: string | null
+          no_trade_day: boolean | null
           result_dollars: number
           result_type: string
           trade_type: string
@@ -45,6 +47,8 @@ export type Database = {
           id?: string
           image_link?: string | null
           news_description?: string | null
+          news_time?: string | null
+          no_trade_day?: boolean | null
           result_dollars: number
           result_type: string
           trade_type: string
@@ -63,6 +67,8 @@ export type Database = {
           id?: string
           image_link?: string | null
           news_description?: string | null
+          news_time?: string | null
+          no_trade_day?: boolean | null
           result_dollars?: number
           result_type?: string
           trade_type?: string

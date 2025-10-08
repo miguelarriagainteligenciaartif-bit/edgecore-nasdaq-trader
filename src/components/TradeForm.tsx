@@ -12,17 +12,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
+  no_trade_day: z.boolean().default(false),
   date: z.string().min(1, "Fecha requerida"),
   day_of_week: z.enum(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]),
-  entry_time: z.string().min(1, "Hora de entrada requerida"),
+  entry_time: z.string().optional(),
   exit_time: z.string().optional(),
-  trade_type: z.enum(["Compra", "Venta"]),
-  result_type: z.enum(["TP", "SL"]),
+  trade_type: z.enum(["Compra", "Venta"]).optional(),
+  result_type: z.enum(["TP", "SL"]).optional(),
   had_news: z.boolean().default(false),
-  news_description: z.string().optional(),
+  news_description: z.enum(["NFP", "CPI", "PMI Servicios", "PMI Manufacturing", "PCE", "Flash PMI", "FOMC", "Ventas Minoristas", "Otra"]).optional(),
+  news_time: z.enum(["08:30", "09:45", "10:00"]).optional(),
   execution_timing: z.enum(["Antes de noticia", "Después de noticia"]).optional(),
-  entry_model: z.enum(["M1", "M3", "Continuación"]),
-  result_dollars: z.string().min(1, "Resultado requerido"),
+  entry_model: z.enum(["M1", "M3", "Continuación"]).optional(),
+  result_dollars: z.string().optional(),
   image_link: z.string().url().optional().or(z.literal("")),
 });
 
@@ -36,11 +38,13 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      no_trade_day: false,
       had_news: false,
       result_dollars: "0",
     },
   });
 
+  const noTradeDay = form.watch("no_trade_day");
   const hadNews = form.watch("had_news");
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -51,27 +55,29 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
 
       const { error } = await supabase.from("trades").insert({
         user_id: user.id,
+        no_trade_day: values.no_trade_day,
         date: values.date,
         day_of_week: values.day_of_week,
-        entry_time: values.entry_time,
+        entry_time: values.entry_time || null,
         exit_time: values.exit_time || null,
-        trade_type: values.trade_type,
-        result_type: values.result_type,
+        trade_type: values.trade_type || null,
+        result_type: values.result_type || null,
         had_news: values.had_news,
         news_description: values.news_description || null,
+        news_time: values.news_time || null,
         execution_timing: values.execution_timing || null,
-        entry_model: values.entry_model,
-        result_dollars: parseFloat(values.result_dollars),
+        entry_model: values.entry_model || null,
+        result_dollars: values.result_dollars ? parseFloat(values.result_dollars) : null,
         image_link: values.image_link || null,
       });
 
       if (error) throw error;
 
-      toast.success("Operación registrada exitosamente");
+      toast.success(values.no_trade_day ? "Día sin entrada registrado" : "Operación registrada exitosamente");
       form.reset();
       onSuccess();
     } catch (error: any) {
-      toast.error(error.message || "Error al registrar operación");
+      toast.error(error.message || "Error al registrar");
     } finally {
       setLoading(false);
     }
@@ -81,11 +87,27 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
     <Card>
       <CardHeader>
         <CardTitle>Registrar Nueva Operación</CardTitle>
-        <CardDescription>Completa los detalles de tu trade</CardDescription>
+        <CardDescription>Completa los detalles de tu trade o registra un día sin entrada</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="no_trade_day"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-warning/20 bg-warning/5 p-4">
+                  <FormControl>
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="text-warning">Día sin entrada</FormLabel>
+                    <p className="text-sm text-muted-foreground">Marcar si ese día no hubo operación</p>
+                  </div>
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -129,9 +151,9 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                 name="entry_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hora de Entrada</FormLabel>
+                    <FormLabel>Hora de Entrada {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" {...field} disabled={noTradeDay} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -145,7 +167,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                   <FormItem>
                     <FormLabel>Hora de Salida</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Input type="time" {...field} disabled={noTradeDay} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -157,8 +179,8 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                 name="trade_type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Operación</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Tipo de Operación {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={noTradeDay}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona tipo" />
@@ -179,8 +201,8 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                 name="result_type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Resultado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Resultado {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={noTradeDay}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="TP o SL" />
@@ -201,8 +223,8 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                 name="entry_model"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Modelo de Entrada</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Modelo de Entrada {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={noTradeDay}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona modelo" />
@@ -224,9 +246,9 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                 name="result_dollars"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Resultado ($)</FormLabel>
+                    <FormLabel>Resultado ($) {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} disabled={noTradeDay} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -250,16 +272,54 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
             />
 
             {hadNews && (
-              <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="news_description"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>¿Cuál noticia?</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: NFP, FOMC..." {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona noticia" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="NFP">NFP (Non-Farm Payrolls)</SelectItem>
+                          <SelectItem value="CPI">CPI (Consumer Price Index)</SelectItem>
+                          <SelectItem value="PMI Servicios">PMI Servicios</SelectItem>
+                          <SelectItem value="PMI Manufacturing">PMI Manufacturing</SelectItem>
+                          <SelectItem value="PCE">PCE (Personal Consumption)</SelectItem>
+                          <SelectItem value="Flash PMI">Flash PMI</SelectItem>
+                          <SelectItem value="FOMC">FOMC</SelectItem>
+                          <SelectItem value="Ventas Minoristas">Ventas Minoristas</SelectItem>
+                          <SelectItem value="Otra">Otra</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="news_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Noticia (NY)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Hora" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="08:30">8:30 AM</SelectItem>
+                          <SelectItem value="09:45">9:45 AM</SelectItem>
+                          <SelectItem value="10:00">10:00 AM</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -270,11 +330,11 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                   name="execution_timing"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ejecución respecto a la noticia</FormLabel>
+                      <FormLabel>Timing de Ejecución</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecciona timing" />
+                            <SelectValue placeholder="Antes/Después" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -286,7 +346,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                     </FormItem>
                   )}
                 />
-              </>
+              </div>
             )}
 
             <FormField
@@ -296,7 +356,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                 <FormItem>
                   <FormLabel>Link de Imagen (opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." {...field} />
+                    <Input placeholder="https://..." {...field} disabled={noTradeDay} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -304,7 +364,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
             />
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Registrando..." : "Registrar Operación"}
+              {loading ? "Registrando..." : (noTradeDay ? "Registrar Día Sin Entrada" : "Registrar Operación")}
             </Button>
           </form>
         </Form>
