@@ -222,7 +222,7 @@ const Backtesting = () => {
         </div>
 
         {/* Additional Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Operaciones Ganadoras</CardTitle>
@@ -239,14 +239,6 @@ const Backtesting = () => {
             <CardContent>
               <p className="text-2xl font-bold text-destructive">{metrics.losingTrades}</p>
               <p className="text-xs text-muted-foreground">Promedio: -${metrics.avgLoss.toFixed(2)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Break Even</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{metrics.breakEvenTrades}</p>
             </CardContent>
           </Card>
         </div>
