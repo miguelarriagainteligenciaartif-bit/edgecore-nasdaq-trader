@@ -25,14 +25,33 @@ export const Header = ({ userName }: HeaderProps) => {
     <header className="border-b border-border bg-card">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">EdgeCore Trading</h1>
+                <p className="text-xs text-muted-foreground">Nasdaq 100 Journal</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">EdgeCore Trading</h1>
-              <p className="text-xs text-muted-foreground">Nasdaq 100 Journal</p>
-            </div>
+            
+            <nav className="hidden md:flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/")}
+              >
+                Dashboard
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/analytics")}
+              >
+                Análisis
+              </Button>
+            </nav>
           </div>
           
           {userName && (
