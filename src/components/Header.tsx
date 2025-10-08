@@ -51,6 +51,13 @@ export const Header = ({ userName }: HeaderProps) => {
               >
                 Análisis
               </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/equity-curve")}
+              >
+                Equity Curve
+              </Button>
             </nav>
           </div>
           

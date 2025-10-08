@@ -232,67 +232,6 @@ export default function Index() {
           />
         </div>
 
-        {/* Equity Curve */}
-        {equityCurve.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Curva de Capital</CardTitle>
-              <CardDescription>
-                {selectedAccount === "all" 
-                  ? "Progreso acumulado por cuenta y total agregado" 
-                  : "Progreso acumulado de P&L"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={equityCurve}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="trade" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Legend />
-                  {selectedAccount === "all" ? (
-                    <>
-                      {accounts.map((account, idx) => (
-                        <Line
-                          key={account.id}
-                          type="monotone"
-                          dataKey={account.id}
-                          name={account.name}
-                          stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      ))}
-                      <Line
-                        type="monotone"
-                        dataKey="total"
-                        name="Total Agregado"
-                        stroke="hsl(var(--primary))"
-                        strokeWidth={3}
-                        dot={{ fill: "hsl(var(--primary))" }}
-                      />
-                    </>
-                  ) : (
-                    <Line
-                      type="monotone"
-                      dataKey="equity"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      dot={{ fill: "hsl(var(--primary))" }}
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Trade Form */}
         <TradeForm onSuccess={loadTrades} />
