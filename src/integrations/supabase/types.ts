@@ -78,6 +78,7 @@ export type Database = {
           trade_type: string
           updated_at: string | null
           user_id: string
+          week_of_month: number | null
         }
         Insert: {
           account_id?: string | null
@@ -100,6 +101,7 @@ export type Database = {
           trade_type: string
           updated_at?: string | null
           user_id: string
+          week_of_month?: number | null
         }
         Update: {
           account_id?: string | null
@@ -122,6 +124,7 @@ export type Database = {
           trade_type?: string
           updated_at?: string | null
           user_id?: string
+          week_of_month?: number | null
         }
         Relationships: [
           {

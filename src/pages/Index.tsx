@@ -18,6 +18,7 @@ interface Trade {
   id: string;
   date: string;
   day_of_week: string;
+  week_of_month: number | null;
   entry_time: string | null;
   exit_time: string | null;
   trade_type: string | null;

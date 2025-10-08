@@ -6,6 +6,7 @@ interface Trade {
   id: string;
   date: string;
   day_of_week: string;
+  week_of_month: number | null;
   entry_time: string | null;
   exit_time: string | null;
   trade_type: string | null;
@@ -63,6 +64,13 @@ export const ReportGenerator = ({ trades }: ReportGeneratorProps) => {
       pnl: actualTrades.filter(t => t.day_of_week === day).reduce((sum, t) => sum + (t.result_dollars || 0), 0)
     }));
 
+    // By week of month
+    const weekStats = [1, 2, 3, 4, 5].map(week => ({
+      week,
+      trades: actualTrades.filter(t => t.week_of_month === week).length,
+      pnl: actualTrades.filter(t => t.week_of_month === week).reduce((sum, t) => sum + (t.result_dollars || 0), 0)
+    }));
+
     // News analysis
     const tradesWithNews = actualTrades.filter(t => t.had_news);
 
@@ -94,16 +102,23 @@ export const ReportGenerator = ({ trades }: ReportGeneratorProps) => {
     });
     csvContent += "\n";
 
+    csvContent += "=== ANÁLISIS POR SEMANA DEL MES ===\n";
+    csvContent += `Semana,Operaciones,P&L\n`;
+    weekStats.forEach(week => {
+      csvContent += `Semana ${week.week},${week.trades},$${week.pnl.toFixed(2)}\n`;
+    });
+    csvContent += "\n";
+
     csvContent += "=== ANÁLISIS DE NOTICIAS ===\n";
     csvContent += `Operaciones con Noticias,${tradesWithNews.length}\n`;
     csvContent += `P&L con Noticias,$${tradesWithNews.reduce((sum, t) => sum + (t.result_dollars || 0), 0).toFixed(2)}\n\n`;
 
     csvContent += "=== DETALLE DE TODAS LAS OPERACIONES ===\n";
-    csvContent += `Fecha,Día,Hora Entrada,Hora Salida,Tipo,Modelo,Resultado,P&L,Noticia,Descripción Noticia,Timing,Día Sin Entrada\n`;
+    csvContent += `Fecha,Día,Semana del Mes,Hora Entrada,Hora Salida,Tipo,Modelo,Resultado,P&L,Noticia,Descripción Noticia,Timing,Día Sin Entrada\n`;
     
     trades.forEach(trade => {
       const newsDesc = trade.news_description === "Otra" ? trade.custom_news_description : trade.news_description;
-      csvContent += `${trade.date},${trade.day_of_week},${trade.entry_time || "N/A"},${trade.exit_time || "N/A"},${trade.trade_type || "N/A"},${trade.entry_model || "N/A"},${trade.result_type || "N/A"},$${(trade.result_dollars || 0).toFixed(2)},${trade.had_news ? "Sí" : "No"},${newsDesc || "N/A"},${trade.execution_timing || "N/A"},${trade.no_trade_day ? "Sí" : "No"}\n`;
+      csvContent += `${trade.date},${trade.day_of_week},${trade.week_of_month || "N/A"},${trade.entry_time || "N/A"},${trade.exit_time || "N/A"},${trade.trade_type || "N/A"},${trade.entry_model || "N/A"},${trade.result_type || "N/A"},$${(trade.result_dollars || 0).toFixed(2)},${trade.had_news ? "Sí" : "No"},${newsDesc || "N/A"},${trade.execution_timing || "N/A"},${trade.no_trade_day ? "Sí" : "No"}\n`;
     });
 
     // Create and download file

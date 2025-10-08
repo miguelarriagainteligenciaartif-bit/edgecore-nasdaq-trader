@@ -74,12 +74,18 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No autenticado");
 
+      // Calculate week of month (1-5)
+      const tradeDate = new Date(values.date);
+      const dayOfMonth = tradeDate.getDate();
+      const weekOfMonth = Math.ceil(dayOfMonth / 7);
+
       const { error } = await supabase.from("trades").insert({
         user_id: user.id,
         no_trade_day: values.no_trade_day,
         account_id: values.account_id || null,
         date: values.date,
         day_of_week: values.day_of_week,
+        week_of_month: weekOfMonth,
         entry_time: values.entry_time || null,
         exit_time: values.exit_time || null,
         trade_type: values.trade_type || null,
