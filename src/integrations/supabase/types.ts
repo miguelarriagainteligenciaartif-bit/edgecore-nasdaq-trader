@@ -14,8 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          account_type: string
+          broker: string
+          created_at: string
+          funding_company: string | null
+          id: string
+          initial_balance: number
+          is_active: boolean
+          name: string
+          risk_percentage: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          broker: string
+          created_at?: string
+          funding_company?: string | null
+          id?: string
+          initial_balance?: number
+          is_active?: boolean
+          name: string
+          risk_percentage?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          broker?: string
+          created_at?: string
+          funding_company?: string | null
+          id?: string
+          initial_balance?: number
+          is_active?: boolean
+          name?: string
+          risk_percentage?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
+          account_id: string | null
           created_at: string | null
           custom_news_description: string | null
           date: string
@@ -37,6 +80,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_id?: string | null
           created_at?: string | null
           custom_news_description?: string | null
           date: string
@@ -58,6 +102,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_id?: string | null
           created_at?: string | null
           custom_news_description?: string | null
           date?: string
@@ -78,7 +123,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trades_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

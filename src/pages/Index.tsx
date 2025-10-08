@@ -5,11 +5,13 @@ import { Header } from "@/components/Header";
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
 import { ReportGenerator } from "@/components/ReportGenerator";
+import { AccountManager } from "@/components/AccountManager";
 import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { cn } from "@/lib/utils";
 
 interface Trade {
@@ -29,6 +31,7 @@ interface Trade {
   execution_timing: string | null;
   no_trade_day: boolean;
   image_link: string | null;
+  account_id: string | null;
 }
 
 export default function Index() {
@@ -36,6 +39,8 @@ export default function Index() {
   const [user, setUser] = useState<any>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>("all");
 
   useEffect(() => {
     checkUser();
@@ -63,10 +68,24 @@ export default function Index() {
     if (!error && data) {
       setTrades(data);
     }
+
+    const { data: accountsData } = await supabase
+      .from("accounts")
+      .select("*")
+      .order("name");
+    
+    if (accountsData) {
+      setAccounts(accountsData);
+    }
+
     setLoading(false);
   };
 
-  const actualTrades = trades.filter(t => !t.no_trade_day);
+  const filteredTrades = selectedAccount === "all" 
+    ? trades 
+    : trades.filter(t => t.account_id === selectedAccount);
+  
+  const actualTrades = filteredTrades.filter(t => !t.no_trade_day);
   const stats = {
     totalPnL: actualTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0),
     totalTrades: actualTrades.length,
@@ -79,28 +98,102 @@ export default function Index() {
 
   const winRate = stats.totalTrades > 0 ? ((stats.winningTrades / stats.totalTrades) * 100).toFixed(1) : 0;
 
-  // Prepare equity curve data
-  let cumulative = 0;
-  const equityCurve = actualTrades
-    .slice()
-    .reverse()
-    .map((trade, index) => {
-      cumulative += (trade.result_dollars || 0);
-      return {
-        trade: index + 1,
-        equity: cumulative,
-        date: trade.date,
-      };
+  // Prepare equity curve data with multiple lines for different accounts
+  const CHART_COLORS = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+  ];
+
+  const equityCurveData = () => {
+    if (selectedAccount !== "all") {
+      // Single account curve
+      let cumulative = 0;
+      return actualTrades
+        .slice()
+        .reverse()
+        .map((trade, index) => {
+          cumulative += (trade.result_dollars || 0);
+          return {
+            trade: index + 1,
+            equity: cumulative,
+            date: trade.date,
+          };
+        });
+    }
+
+    // Multi-account curves
+    const allAccountTrades = trades.filter(t => !t.no_trade_day);
+    const tradesByDate = allAccountTrades.reduce((acc: any, trade) => {
+      if (!acc[trade.date]) {
+        acc[trade.date] = [];
+      }
+      acc[trade.date].push(trade);
+      return acc;
+    }, {});
+
+    const dates = Object.keys(tradesByDate).sort();
+    const accountCumulatives: Record<string, number> = {};
+    
+    // Initialize all accounts
+    accounts.forEach(acc => {
+      accountCumulatives[acc.id] = 0;
     });
+    accountCumulatives["total"] = 0;
+
+    return dates.map((date, index) => {
+      const dayTrades = tradesByDate[date];
+      const dataPoint: any = { trade: index + 1, date };
+
+      // Update cumulatives for each account
+      dayTrades.forEach((trade: Trade) => {
+        if (trade.account_id) {
+          accountCumulatives[trade.account_id] += (trade.result_dollars || 0);
+        }
+        accountCumulatives["total"] += (trade.result_dollars || 0);
+      });
+
+      // Add all account values to this data point
+      accounts.forEach(acc => {
+        dataPoint[acc.id] = accountCumulatives[acc.id];
+      });
+      dataPoint["total"] = accountCumulatives["total"];
+
+      return dataPoint;
+    });
+  };
+
+  const equityCurve = equityCurveData();
 
   return (
     <div className="min-h-screen bg-background">
       <Header userName={user?.email} />
       
       <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Report Download Button */}
-        <div className="flex justify-end">
-          <ReportGenerator trades={trades} />
+        {/* Account Manager */}
+        <AccountManager />
+
+        {/* Account Filter and Report */}
+        <div className="flex justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Filtrar por cuenta:</span>
+            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las Cuentas (Agregado)</SelectItem>
+                {accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name} - {account.broker}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <ReportGenerator trades={filteredTrades} />
         </div>
 
         {/* Stats Grid */}
@@ -143,10 +236,14 @@ export default function Index() {
           <Card>
             <CardHeader>
               <CardTitle>Curva de Capital</CardTitle>
-              <CardDescription>Progreso acumulado de P&L</CardDescription>
+              <CardDescription>
+                {selectedAccount === "all" 
+                  ? "Progreso acumulado por cuenta y total agregado" 
+                  : "Progreso acumulado de P&L"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={equityCurve}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="trade" stroke="hsl(var(--muted-foreground))" />
@@ -158,13 +255,38 @@ export default function Index() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="equity"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ fill: "hsl(var(--primary))" }}
-                  />
+                  <Legend />
+                  {selectedAccount === "all" ? (
+                    <>
+                      {accounts.map((account, idx) => (
+                        <Line
+                          key={account.id}
+                          type="monotone"
+                          dataKey={account.id}
+                          name={account.name}
+                          stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      ))}
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        name="Total Agregado"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={3}
+                        dot={{ fill: "hsl(var(--primary))" }}
+                      />
+                    </>
+                  ) : (
+                    <Line
+                      type="monotone"
+                      dataKey="equity"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      dot={{ fill: "hsl(var(--primary))" }}
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>

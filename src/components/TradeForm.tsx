@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 const formSchema = z.object({
   no_trade_day: z.boolean().default(false),
+  account_id: z.string().optional(),
   date: z.string().min(1, "Fecha requerida"),
   day_of_week: z.enum(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]),
   entry_time: z.string().optional(),
@@ -35,6 +36,7 @@ interface TradeFormProps {
 
 export const TradeForm = ({ onSuccess }: TradeFormProps) => {
   const [loading, setLoading] = useState(false);
+  const [accounts, setAccounts] = useState<any[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,12 +44,29 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
       no_trade_day: false,
       had_news: false,
       result_dollars: "0",
+      account_id: "",
     },
   });
 
   const noTradeDay = form.watch("no_trade_day");
   const hadNews = form.watch("had_news");
   const newsDescription = form.watch("news_description");
+
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  const loadAccounts = async () => {
+    const { data, error } = await supabase
+      .from("accounts")
+      .select("*")
+      .eq("is_active", true)
+      .order("name");
+    
+    if (!error && data) {
+      setAccounts(data);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
@@ -58,6 +77,7 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
       const { error } = await supabase.from("trades").insert({
         user_id: user.id,
         no_trade_day: values.no_trade_day,
+        account_id: values.account_id || null,
         date: values.date,
         day_of_week: values.day_of_week,
         entry_time: values.entry_time || null,
@@ -107,6 +127,32 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
                     <FormLabel className="text-warning">Día sin entrada</FormLabel>
                     <p className="text-sm text-muted-foreground">Marcar si ese día no hubo operación</p>
                   </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="account_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cuenta</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una cuenta (opcional)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Ninguna</SelectItem>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name} ({account.broker})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
                 </FormItem>
               )}
             />
