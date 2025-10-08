@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, TrendingDown, DollarSign, Percent } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -234,7 +234,7 @@ const Backtesting = () => {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardHeader>
               <CardTitle>Análisis por Modelo de Entrada</CardTitle>
@@ -273,6 +273,51 @@ const Backtesting = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Trades with Images */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Operaciones Recientes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {trades.filter(t => !t.no_trade_day).slice(0, 10).map((trade) => (
+                <div key={trade.id} className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-semibold">{new Date(trade.date).toLocaleDateString('es-ES')}</span>
+                      <span className="text-xs text-muted-foreground">{trade.day_of_week}</span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        trade.result_type === 'Win' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
+                      }`}>
+                        {trade.result_type}
+                      </span>
+                    </div>
+                    <div className="flex gap-4 text-sm text-muted-foreground">
+                      <span>Modelo: {trade.entry_model}</span>
+                      <span>Tipo: {trade.trade_type}</span>
+                      <span className={trade.result_dollars >= 0 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
+                        ${Number(trade.result_dollars).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  {trade.image_link && (
+                    <a 
+                      href={trade.image_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-accent transition-colors"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      Ver Chart
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
