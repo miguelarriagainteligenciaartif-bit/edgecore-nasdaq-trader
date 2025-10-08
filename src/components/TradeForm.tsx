@@ -32,9 +32,10 @@ const formSchema = z.object({
 
 interface TradeFormProps {
   onSuccess: () => void;
+  isBacktest?: boolean;
 }
 
-export const TradeForm = ({ onSuccess }: TradeFormProps) => {
+export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => {
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
 
@@ -79,10 +80,10 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
       const dayOfMonth = tradeDate.getDate();
       const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
-      const { error } = await supabase.from("trades").insert({
+      const tableName = isBacktest ? "backtest_trades" : "trades";
+      const insertData: any = {
         user_id: user.id,
         no_trade_day: values.no_trade_day,
-        account_id: values.account_id || null,
         date: values.date,
         day_of_week: values.day_of_week,
         week_of_month: weekOfMonth,
@@ -98,11 +99,18 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
         entry_model: values.entry_model || null,
         result_dollars: values.result_dollars ? parseFloat(values.result_dollars) : null,
         image_link: values.image_link || null,
-      });
+      };
+
+      // Only add account_id for regular trades (not backtest)
+      if (!isBacktest) {
+        insertData.account_id = values.account_id || null;
+      }
+
+      const { error } = await supabase.from(tableName).insert(insertData);
 
       if (error) throw error;
 
-      toast.success(values.no_trade_day ? "Día sin entrada registrado" : "Operación registrada exitosamente");
+      toast.success(values.no_trade_day ? "Día sin entrada registrado" : `Operación ${isBacktest ? 'de backtesting' : ''} registrada exitosamente`);
       form.reset();
       onSuccess();
     } catch (error: any) {
@@ -137,34 +145,36 @@ export const TradeForm = ({ onSuccess }: TradeFormProps) => {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="account_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cuenta</FormLabel>
-                  <Select 
-                    onValueChange={(value) => field.onChange(value === "none" ? "" : value)} 
-                    value={field.value || "none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una cuenta (opcional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">Ninguna</SelectItem>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name} ({account.broker})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isBacktest && (
+              <FormField
+                control={form.control}
+                name="account_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cuenta</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === "none" ? "" : value)} 
+                      value={field.value || "none"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una cuenta (opcional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Ninguna</SelectItem>
+                        {accounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name} ({account.broker})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField

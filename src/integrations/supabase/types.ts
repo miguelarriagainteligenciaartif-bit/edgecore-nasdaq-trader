@@ -56,6 +56,75 @@ export type Database = {
         }
         Relationships: []
       }
+      backtest_trades: {
+        Row: {
+          created_at: string
+          custom_news_description: string | null
+          date: string
+          day_of_week: string
+          entry_model: string
+          entry_time: string
+          execution_timing: string | null
+          exit_time: string | null
+          had_news: boolean | null
+          id: string
+          image_link: string | null
+          news_description: string | null
+          news_time: string | null
+          no_trade_day: boolean | null
+          result_dollars: number
+          result_type: string
+          trade_type: string
+          updated_at: string
+          user_id: string
+          week_of_month: number | null
+        }
+        Insert: {
+          created_at?: string
+          custom_news_description?: string | null
+          date: string
+          day_of_week: string
+          entry_model: string
+          entry_time: string
+          execution_timing?: string | null
+          exit_time?: string | null
+          had_news?: boolean | null
+          id?: string
+          image_link?: string | null
+          news_description?: string | null
+          news_time?: string | null
+          no_trade_day?: boolean | null
+          result_dollars: number
+          result_type: string
+          trade_type: string
+          updated_at?: string
+          user_id: string
+          week_of_month?: number | null
+        }
+        Update: {
+          created_at?: string
+          custom_news_description?: string | null
+          date?: string
+          day_of_week?: string
+          entry_model?: string
+          entry_time?: string
+          execution_timing?: string | null
+          exit_time?: string | null
+          had_news?: boolean | null
+          id?: string
+          image_link?: string | null
+          news_description?: string | null
+          news_time?: string | null
+          no_trade_day?: boolean | null
+          result_dollars?: number
+          result_type?: string
+          trade_type?: string
+          updated_at?: string
+          user_id?: string
+          week_of_month?: number | null
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           account_id: string | null
