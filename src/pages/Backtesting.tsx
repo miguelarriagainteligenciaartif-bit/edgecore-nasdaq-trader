@@ -259,7 +259,15 @@ const Backtesting = () => {
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="Win Rate (%)" fill="hsl(var(--primary))" />
-                  <Bar dataKey="Ganancia ($)" fill="hsl(var(--success))" />
+                  <Bar 
+                    dataKey="Ganancia ($)" 
+                    fill="hsl(var(--success))"
+                    shape={(props: any) => {
+                      const { fill, x, y, width, height, value } = props;
+                      const color = parseFloat(value) >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
+                      return <rect x={x} y={y} width={width} height={height} fill={color} />;
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -278,7 +286,15 @@ const Backtesting = () => {
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="Win Rate (%)" fill="hsl(var(--primary))" />
-                  <Bar dataKey="Ganancia ($)" fill="hsl(var(--success))" />
+                  <Bar 
+                    dataKey="Ganancia ($)" 
+                    fill="hsl(var(--success))"
+                    shape={(props: any) => {
+                      const { fill, x, y, width, height, value } = props;
+                      const color = parseFloat(value) >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
+                      return <rect x={x} y={y} width={width} height={height} fill={color} />;
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
