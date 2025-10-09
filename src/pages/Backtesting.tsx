@@ -4,7 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, ExternalLink, Image as ImageIcon, Edit2, Check, X } from "lucide-react";
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -36,10 +38,15 @@ const Backtesting = () => {
   const [trades, setTrades] = useState<BacktestTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [initialCapital, setInitialCapital] = useState<number>(0);
+  const [isEditingCapital, setIsEditingCapital] = useState(false);
+  const [tempCapital, setTempCapital] = useState<string>("0");
+  const [configId, setConfigId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
     fetchTrades();
+    fetchBacktestConfig();
   }, []);
 
   const checkAuth = async () => {
@@ -64,6 +71,87 @@ const Backtesting = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchBacktestConfig = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("backtest_config")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data) {
+        setInitialCapital(Number(data.initial_capital));
+        setConfigId(data.id);
+      } else {
+        // Crear configuración por defecto
+        const { data: newConfig, error: insertError } = await supabase
+          .from("backtest_config")
+          .insert({ user_id: user.id, initial_capital: 0 })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        if (newConfig) {
+          setInitialCapital(Number(newConfig.initial_capital));
+          setConfigId(newConfig.id);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching backtest config:", error);
+    }
+  };
+
+  const updateInitialCapital = async (newCapital: number) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (configId) {
+        const { error } = await supabase
+          .from("backtest_config")
+          .update({ initial_capital: newCapital })
+          .eq("id", configId);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("backtest_config")
+          .insert({ user_id: user.id, initial_capital: newCapital })
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) setConfigId(data.id);
+      }
+
+      setInitialCapital(newCapital);
+      toast.success("Capital inicial actualizado");
+    } catch (error) {
+      console.error("Error updating initial capital:", error);
+      toast.error("Error al actualizar capital inicial");
+    }
+  };
+
+  const handleSaveCapital = async () => {
+    const newCapital = parseFloat(tempCapital);
+    if (isNaN(newCapital) || newCapital < 0) {
+      toast.error("Por favor ingresa un capital válido");
+      return;
+    }
+    await updateInitialCapital(newCapital);
+    setIsEditingCapital(false);
+  };
+
+  const handleCancelEdit = () => {
+    setTempCapital(initialCapital.toString());
+    setIsEditingCapital(false);
   };
 
   const calculateMetrics = () => {
@@ -195,12 +283,54 @@ const Backtesting = () => {
 
         {/* Main Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center justify-between">
+                Capital Inicial
+                {!isEditingCapital && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setTempCapital(initialCapital.toString());
+                      setIsEditingCapital(true);
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditingCapital ? (
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={tempCapital}
+                    onChange={(e) => setTempCapital(e.target.value)}
+                    placeholder="Ej: 501.14"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveCapital}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-2xl font-bold">${initialCapital.toFixed(2)}</p>
+              )}
+            </CardContent>
+          </Card>
           <StatsCard
             title="Capital Actual"
-            value={`$${metrics.totalProfit.toFixed(2)}`}
+            value={`$${(initialCapital + metrics.totalProfit).toFixed(2)}`}
             icon={DollarSign}
-            trend={metrics.totalProfit >= 0 ? "up" : "down"}
-            subtitle="Equity acumulada"
+            trend={(initialCapital + metrics.totalProfit) >= initialCapital ? "up" : "down"}
+            subtitle="Capital inicial + P&L"
           />
           <StatsCard
             title="Total de Operaciones"
@@ -220,12 +350,6 @@ const Backtesting = () => {
             icon={TrendingUp}
             trend={metrics.expectedValue > 0 ? "up" : "down"}
             subtitle="Por operación"
-          />
-          <StatsCard
-            title="Ganancia Total"
-            value={`$${metrics.totalProfit.toFixed(2)}`}
-            icon={metrics.totalProfit >= 0 ? TrendingUp : TrendingDown}
-            trend={metrics.totalProfit >= 0 ? "up" : "down"}
           />
         </div>
 

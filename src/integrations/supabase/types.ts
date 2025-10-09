@@ -56,6 +56,30 @@ export type Database = {
         }
         Relationships: []
       }
+      backtest_config: {
+        Row: {
+          created_at: string
+          id: string
+          initial_capital: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          initial_capital?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          initial_capital?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       backtest_trades: {
         Row: {
           created_at: string
