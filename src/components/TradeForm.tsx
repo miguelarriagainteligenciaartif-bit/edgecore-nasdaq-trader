@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const formSchema = z.object({
   no_trade_day: z.boolean().default(false),
   account_id: z.string().optional(),
+  asset: z.enum(["Nasdaq 100", "Oro", "BTC", "EUR/USD", "GBP/USD", "Petróleo", "S&P 500", "Otro"]).default("Nasdaq 100"),
   date: z.string().min(1, "Fecha requerida"),
   day_of_week: z.enum(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]),
   entry_time: z.string().optional(),
@@ -58,6 +59,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
       result_dollars: "0",
       account_id: "",
       risk_percentage: "1",
+      asset: "Nasdaq 100",
     },
   });
 
@@ -100,6 +102,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
       const insertData: any = {
         user_id: user.id,
         no_trade_day: values.no_trade_day,
+        asset: values.asset,
         date: values.date,
         day_of_week: values.day_of_week,
         week_of_month: weekOfMonth,
@@ -197,6 +200,29 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="asset"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Activo</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona activo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {["Nasdaq 100", "Oro", "BTC", "EUR/USD", "GBP/USD", "Petróleo", "S&P 500", "Otro"].map((asset) => (
+                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="date"

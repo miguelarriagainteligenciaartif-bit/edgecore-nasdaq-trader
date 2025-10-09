@@ -82,6 +82,7 @@ export type Database = {
       }
       backtest_strategies: {
         Row: {
+          asset: string
           created_at: string
           description: string | null
           id: string
@@ -92,6 +93,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          asset?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -102,6 +104,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          asset?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -115,6 +118,7 @@ export type Database = {
       }
       backtest_trades: {
         Row: {
+          asset: string
           created_at: string
           custom_news_description: string | null
           date: string
@@ -139,6 +143,7 @@ export type Database = {
           week_of_month: number | null
         }
         Insert: {
+          asset?: string
           created_at?: string
           custom_news_description?: string | null
           date: string
@@ -163,6 +168,7 @@ export type Database = {
           week_of_month?: number | null
         }
         Update: {
+          asset?: string
           created_at?: string
           custom_news_description?: string | null
           date?: string
@@ -199,6 +205,7 @@ export type Database = {
       trades: {
         Row: {
           account_id: string | null
+          asset: string
           created_at: string | null
           custom_news_description: string | null
           date: string
@@ -223,6 +230,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          asset?: string
           created_at?: string | null
           custom_news_description?: string | null
           date: string
@@ -247,6 +255,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          asset?: string
           created_at?: string | null
           custom_news_description?: string | null
           date?: string

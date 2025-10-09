@@ -16,6 +16,7 @@ interface Strategy {
   description: string | null;
   initial_capital: number;
   risk_reward_ratio: string;
+  asset: string;
   created_at: string;
 }
 
@@ -33,7 +34,8 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
     name: "",
     description: "",
     initial_capital: "0",
-    risk_reward_ratio: "1:2"
+    risk_reward_ratio: "1:2",
+    asset: "Nasdaq 100"
   });
 
   useEffect(() => {
@@ -85,7 +87,8 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
             name: formData.name,
             description: formData.description || null,
             initial_capital: capitalValue,
-            risk_reward_ratio: formData.risk_reward_ratio
+            risk_reward_ratio: formData.risk_reward_ratio,
+            asset: formData.asset
           })
           .eq("id", editingStrategy.id);
 
@@ -99,7 +102,8 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
             name: formData.name,
             description: formData.description || null,
             initial_capital: capitalValue,
-            risk_reward_ratio: formData.risk_reward_ratio
+            risk_reward_ratio: formData.risk_reward_ratio,
+            asset: formData.asset
           });
 
         if (error) throw error;
@@ -148,7 +152,8 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
       name: strategy.name,
       description: strategy.description || "",
       initial_capital: strategy.initial_capital.toString(),
-      risk_reward_ratio: strategy.risk_reward_ratio
+      risk_reward_ratio: strategy.risk_reward_ratio,
+      asset: strategy.asset || "Nasdaq 100"
     });
     setIsDialogOpen(true);
   };
@@ -158,7 +163,8 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
       name: "",
       description: "",
       initial_capital: "0",
-      risk_reward_ratio: "1:2"
+      risk_reward_ratio: "1:2",
+      asset: "Nasdaq 100"
     });
   };
 
@@ -211,6 +217,27 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
                     placeholder="Ej: Trading de 8:00-12:00 GMT en sesión de Londres"
                     rows={3}
                   />
+                </div>
+                <div>
+                  <Label htmlFor="asset">Activo *</Label>
+                  <Select
+                    value={formData.asset}
+                    onValueChange={(value) => setFormData({ ...formData, asset: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Nasdaq 100">Nasdaq 100</SelectItem>
+                      <SelectItem value="Oro">Oro</SelectItem>
+                      <SelectItem value="BTC">BTC</SelectItem>
+                      <SelectItem value="EUR/USD">EUR/USD</SelectItem>
+                      <SelectItem value="GBP/USD">GBP/USD</SelectItem>
+                      <SelectItem value="Petróleo">Petróleo</SelectItem>
+                      <SelectItem value="S&P 500">S&P 500</SelectItem>
+                      <SelectItem value="Otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="capital">Capital Inicial *</Label>
@@ -282,6 +309,9 @@ export const StrategyManager = ({ selectedStrategy, onStrategyChange, onStrategi
                       <p className="text-sm text-muted-foreground mt-1">{strategy.description}</p>
                     )}
                     <div className="flex gap-4 mt-2 text-sm">
+                      <span className="text-muted-foreground">
+                        Activo: <span className="font-medium text-foreground">{strategy.asset}</span>
+                      </span>
                       <span className="text-muted-foreground">
                         Capital: <span className="font-medium text-foreground">${strategy.initial_capital.toFixed(2)}</span>
                       </span>
