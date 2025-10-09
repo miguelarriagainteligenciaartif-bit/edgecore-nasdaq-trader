@@ -225,7 +225,7 @@ const Backtesting = () => {
       .filter(t => !t.no_trade_day)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    let cumulativeEquity = 0;
+    let cumulativeEquity = initialCapital;
     return sortedTrades.map((trade) => {
       cumulativeEquity += Number(trade.result_dollars);
       return {
