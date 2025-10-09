@@ -194,7 +194,14 @@ const Backtesting = () => {
         </div>
 
         {/* Main Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <StatsCard
+            title="Capital Actual"
+            value={`$${metrics.totalProfit.toFixed(2)}`}
+            icon={DollarSign}
+            trend={metrics.totalProfit >= 0 ? "up" : "down"}
+            subtitle="Equity acumulada"
+          />
           <StatsCard
             title="Total de Operaciones"
             value={metrics.totalTrades}
