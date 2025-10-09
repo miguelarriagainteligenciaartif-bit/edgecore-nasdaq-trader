@@ -139,6 +139,35 @@ const Backtesting = () => {
     
     const expectedValue = totalTrades > 0 ? (winRate / 100 * avgWin) - ((1 - winRate / 100) * avgLoss) : 0;
 
+    // Calcular rachas consecutivas
+    let currentTPStreak = 0;
+    let bestTPStreak = 0;
+    let currentSLStreak = 0;
+    let worstSLStreak = 0;
+
+    const sortedTrades = [...actualTrades].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    sortedTrades.forEach(trade => {
+      if (trade.result_type === "TP") {
+        currentTPStreak++;
+        currentSLStreak = 0;
+        if (currentTPStreak > bestTPStreak) {
+          bestTPStreak = currentTPStreak;
+        }
+      } else if (trade.result_type === "SL") {
+        currentSLStreak++;
+        currentTPStreak = 0;
+        if (currentSLStreak > worstSLStreak) {
+          worstSLStreak = currentSLStreak;
+        }
+      } else {
+        currentTPStreak = 0;
+        currentSLStreak = 0;
+      }
+    });
+
     return {
       totalTrades,
       totalDays,
@@ -151,7 +180,9 @@ const Backtesting = () => {
       winRate,
       avgWin,
       avgLoss,
-      expectedValue
+      expectedValue,
+      bestTPStreak,
+      worstSLStreak
     };
   };
 
@@ -332,7 +363,7 @@ const Backtesting = () => {
             </div>
 
             {/* Additional Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Operaciones Ganadoras</CardTitle>
@@ -360,6 +391,24 @@ const Backtesting = () => {
                   <p className="text-xs text-muted-foreground">
                     {metrics.noTradeDaysPercentage.toFixed(1)}% del total de días ({metrics.totalDays})
                   </p>
+                </CardContent>
+              </Card>
+              <Card className="border-success/20 bg-success/5">
+                <CardHeader>
+                  <CardTitle className="text-sm text-success">Mejor Racha (TP)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-success">{metrics.bestTPStreak}</p>
+                  <p className="text-xs text-muted-foreground">TP consecutivos</p>
+                </CardContent>
+              </Card>
+              <Card className="border-destructive/20 bg-destructive/5">
+                <CardHeader>
+                  <CardTitle className="text-sm text-destructive">Peor Racha (SL)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-destructive">{metrics.worstSLStreak}</p>
+                  <p className="text-xs text-muted-foreground">SL consecutivos</p>
                 </CardContent>
               </Card>
             </div>
