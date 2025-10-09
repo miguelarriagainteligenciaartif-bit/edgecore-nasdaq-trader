@@ -28,6 +28,7 @@ interface Trade {
   no_trade_day: boolean;
   image_link: string | null;
   account_id: string | null;
+  max_rr: number | null;
 }
 
 export default function Analytics() {
@@ -94,6 +95,12 @@ export default function Analytics() {
   const tpTradesWithDrawdown = winningTrades.filter(t => t.drawdown !== null && t.drawdown !== undefined);
   const avgDrawdownTP = tpTradesWithDrawdown.length > 0
     ? tpTradesWithDrawdown.reduce((sum, t) => sum + (t.drawdown || 0), 0) / tpTradesWithDrawdown.length
+    : 0;
+
+  // Calculate average max RR
+  const tradesWithMaxRR = actualTrades.filter(t => t.max_rr !== null && t.max_rr !== undefined);
+  const avgMaxRR = tradesWithMaxRR.length > 0
+    ? tradesWithMaxRR.reduce((sum, t) => sum + (t.max_rr || 0), 0) / tradesWithMaxRR.length
     : 0;
 
   // Analysis by entry model
@@ -182,7 +189,7 @@ export default function Analytics() {
         </div>
 
         {/* Main Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <StatsCard
             title="Win Rate"
             value={`${winRate.toFixed(1)}%`}
@@ -209,6 +216,13 @@ export default function Analytics() {
             value={bestWeek?.name || "N/A"}
             subtitle={`$${bestWeek?.pnl.toFixed(2) || 0} de P&L`}
             icon={Clock}
+            trend="up"
+          />
+          <StatsCard
+            title="RR Máximo Promedio"
+            value={avgMaxRR > 0 ? avgMaxRR.toFixed(2) : "N/A"}
+            subtitle={`${tradesWithMaxRR.length} ops con RR máx`}
+            icon={TrendingUp}
             trend="up"
           />
         </div>

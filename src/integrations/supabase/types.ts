@@ -131,6 +131,7 @@ export type Database = {
           had_news: boolean | null
           id: string
           image_link: string | null
+          max_rr: number | null
           news_description: string | null
           news_time: string | null
           no_trade_day: boolean | null
@@ -157,6 +158,7 @@ export type Database = {
           had_news?: boolean | null
           id?: string
           image_link?: string | null
+          max_rr?: number | null
           news_description?: string | null
           news_time?: string | null
           no_trade_day?: boolean | null
@@ -183,6 +185,7 @@ export type Database = {
           had_news?: boolean | null
           id?: string
           image_link?: string | null
+          max_rr?: number | null
           news_description?: string | null
           news_time?: string | null
           no_trade_day?: boolean | null
@@ -221,6 +224,7 @@ export type Database = {
           had_news: boolean | null
           id: string
           image_link: string | null
+          max_rr: number | null
           news_description: string | null
           news_time: string | null
           no_trade_day: boolean | null
@@ -247,6 +251,7 @@ export type Database = {
           had_news?: boolean | null
           id?: string
           image_link?: string | null
+          max_rr?: number | null
           news_description?: string | null
           news_time?: string | null
           no_trade_day?: boolean | null
@@ -273,6 +278,7 @@ export type Database = {
           had_news?: boolean | null
           id?: string
           image_link?: string | null
+          max_rr?: number | null
           news_description?: string | null
           news_time?: string | null
           no_trade_day?: boolean | null

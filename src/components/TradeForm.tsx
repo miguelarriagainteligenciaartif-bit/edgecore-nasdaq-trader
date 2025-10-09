@@ -22,6 +22,10 @@ const formSchema = z.object({
   trade_type: z.enum(["Compra", "Venta"]).optional(),
   result_type: z.enum(["TP", "SL"]).optional(),
   drawdown: z.enum(["0.33", "0.50", "0.66", "0.90", "1.00"]).optional(),
+  max_rr: z.union([
+    z.string(),
+    z.number(),
+  ]).optional(),
   had_news: z.boolean().default(false),
   news_description: z.enum(["NFP", "CPI", "PMI Servicios", "PMI Manufacturing", "PCE", "Flash PMI", "FOMC", "Ventas Minoristas", "Otra"]).optional(),
   custom_news_description: z.string().optional(),
@@ -97,6 +101,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
       trade_type: undefined,
       result_type: undefined,
       drawdown: undefined,
+      max_rr: undefined,
       entry_model: undefined,
       image_link: "",
       news_description: undefined,
@@ -157,6 +162,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
         trade_type: values.no_trade_day ? "Compra" : values.trade_type,
         result_type: values.no_trade_day ? "TP" : values.result_type,
         drawdown: values.drawdown ? parseFloat(values.drawdown) : null,
+        max_rr: values.max_rr ? parseFloat(values.max_rr.toString()) : null,
         had_news: values.had_news,
         news_description: values.news_description || null,
         custom_news_description: values.custom_news_description || null,
@@ -192,6 +198,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
         trade_type: undefined,
         result_type: undefined,
         drawdown: undefined,
+        max_rr: undefined,
         entry_model: undefined,
         image_link: "",
         news_description: undefined,
@@ -418,6 +425,27 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
                         <SelectItem value="1.00">Full (SL completo)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="max_rr"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>RR Máximo Alcanzado</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.1"
+                        placeholder="Ej: 3.5" 
+                        {...field}
+                        value={field.value || ''}
+                        disabled={noTradeDay}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
