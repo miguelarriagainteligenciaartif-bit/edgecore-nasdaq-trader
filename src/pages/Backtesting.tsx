@@ -96,12 +96,13 @@ const Backtesting = () => {
         .from("backtest_strategies")
         .select("*")
         .eq("id", selectedStrategy)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       setCurrentStrategy(data);
     } catch (error) {
       console.error("Error fetching strategy:", error);
+      setCurrentStrategy(null);
     }
   };
 
