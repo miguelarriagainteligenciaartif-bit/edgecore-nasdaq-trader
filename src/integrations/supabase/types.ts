@@ -168,6 +168,7 @@ export type Database = {
           no_trade_day: boolean | null
           result_dollars: number
           result_type: string
+          risk_percentage: number
           trade_type: string
           updated_at: string | null
           user_id: string
@@ -191,6 +192,7 @@ export type Database = {
           no_trade_day?: boolean | null
           result_dollars: number
           result_type: string
+          risk_percentage?: number
           trade_type: string
           updated_at?: string | null
           user_id: string
@@ -214,6 +216,7 @@ export type Database = {
           no_trade_day?: boolean | null
           result_dollars?: number
           result_type?: string
+          risk_percentage?: number
           trade_type?: string
           updated_at?: string | null
           user_id?: string

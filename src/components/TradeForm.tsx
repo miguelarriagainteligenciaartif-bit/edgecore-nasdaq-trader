@@ -28,6 +28,7 @@ const formSchema = z.object({
   entry_model: z.enum(["M1", "M3", "Continuación"]).optional(),
   result_dollars: z.string().optional(),
   image_link: z.string().url().optional().or(z.literal("")),
+  risk_percentage: z.string().default("1"),
 });
 
 interface TradeFormProps {
@@ -46,6 +47,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => 
       had_news: false,
       result_dollars: "0",
       account_id: "",
+      risk_percentage: "1",
     },
   });
 
@@ -66,6 +68,10 @@ export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => 
     
     if (!error && data) {
       setAccounts(data);
+      // Set default risk_percentage from first account if available
+      if (data.length > 0 && !form.getValues("account_id")) {
+        form.setValue("risk_percentage", data[0].risk_percentage.toString());
+      }
     }
   };
 
@@ -99,6 +105,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => 
         entry_model: values.entry_model || null,
         result_dollars: values.result_dollars ? parseFloat(values.result_dollars) : null,
         image_link: values.image_link || null,
+        risk_percentage: values.risk_percentage ? parseFloat(values.risk_percentage) : 1,
       };
 
       // Only add account_id for regular trades (not backtest)
@@ -317,6 +324,37 @@ export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => 
                     <FormLabel>Resultado ($) {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="0.00" {...field} disabled={noTradeDay} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="risk_percentage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Riesgo (%) {!noTradeDay && <span className="text-destructive">*</span>}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.1" 
+                        placeholder="1.0" 
+                        {...field} 
+                        disabled={noTradeDay}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          // Update account risk if account is selected
+                          const accountId = form.getValues("account_id");
+                          if (accountId) {
+                            const account = accounts.find(a => a.id === accountId);
+                            if (account) {
+                              // Optionally update the account's default risk
+                            }
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

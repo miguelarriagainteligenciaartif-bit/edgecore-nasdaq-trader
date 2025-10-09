@@ -33,6 +33,7 @@ interface Trade {
   no_trade_day: boolean;
   image_link: string | null;
   account_id: string | null;
+  risk_percentage: number;
 }
 
 export default function Index() {
@@ -95,6 +96,9 @@ export default function Index() {
     m1Trades: actualTrades.filter(t => t.entry_model === "M1"),
     m3Trades: actualTrades.filter(t => t.entry_model === "M3"),
     contTrades: actualTrades.filter(t => t.entry_model === "Continuación"),
+    avgRisk: actualTrades.length > 0 
+      ? actualTrades.reduce((sum, t) => sum + (t.risk_percentage || 1), 0) / actualTrades.length 
+      : 0,
   };
 
   const winRate = stats.totalTrades > 0 ? ((stats.winningTrades / stats.totalTrades) * 100).toFixed(1) : 0;
@@ -176,29 +180,13 @@ export default function Index() {
         {/* Account Manager */}
         <AccountManager />
 
-        {/* Account Filter and Report */}
-        <div className="flex justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Filtrar por cuenta:</span>
-            <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-              <SelectTrigger className="w-[250px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las Cuentas (Agregado)</SelectItem>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name} - {account.broker}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <ReportGenerator trades={filteredTrades} />
+        {/* Report Generator */}
+        <div className="flex justify-end">
+          <ReportGenerator trades={trades} />
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatsCard
             title="P&L Total"
             value={`$${stats.totalPnL.toFixed(2)}`}
@@ -217,6 +205,13 @@ export default function Index() {
             value={stats.totalTrades}
             icon={Calendar}
             trend="neutral"
+          />
+          <StatsCard
+            title="Riesgo Promedio"
+            value={`${stats.avgRisk.toFixed(2)}%`}
+            icon={Target}
+            trend="neutral"
+            subtitle="Por operación"
           />
           <StatsCard
             title="Mejor Modelo"
