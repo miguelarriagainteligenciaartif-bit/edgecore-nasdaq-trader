@@ -115,14 +115,21 @@ export default function EquityCurve() {
       dayTrades.forEach((trade: Trade) => {
         if (trade.account_id) {
           accountCumulatives[trade.account_id] += (trade.result_dollars || 0);
+        } else {
+          // Solo sumar al total si no tiene cuenta asignada
+          accountCumulatives["total"] += (trade.result_dollars || 0);
         }
-        accountCumulatives["total"] += (trade.result_dollars || 0);
       });
 
+      // Calcular el total como la suma de todas las cuentas
+      let totalFromAccounts = 0;
       accounts.forEach(acc => {
         dataPoint[acc.id] = accountCumulatives[acc.id];
+        totalFromAccounts += accountCumulatives[acc.id];
       });
-      dataPoint["total"] = accountCumulatives["total"];
+      
+      // Usar el total calculado de las cuentas más operaciones sin cuenta
+      dataPoint["total"] = totalFromAccounts + (accountCumulatives["total"] - totalInitialBalance);
 
       return dataPoint;
     });
