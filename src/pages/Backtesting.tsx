@@ -422,30 +422,45 @@ const Backtesting = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {trades.filter(t => !t.no_trade_day).length === 0 ? (
+                  {trades.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">
-                      No hay operaciones registradas para esta estrategia
+                      No hay registros para esta estrategia
                     </p>
                   ) : (
-                    trades.filter(t => !t.no_trade_day).slice(0, 10).map((trade) => (
-                      <div key={trade.id} className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors">
+                    trades.slice(0, 10).map((trade) => (
+                      <div 
+                        key={trade.id} 
+                        className={`flex items-start justify-between p-4 border rounded-lg transition-colors ${
+                          trade.no_trade_day 
+                            ? 'bg-warning/5 border-warning/20' 
+                            : 'hover:bg-accent/5'
+                        }`}
+                      >
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <span className="text-sm font-semibold">{new Date(trade.date).toLocaleDateString('es-ES')}</span>
                             <span className="text-xs text-muted-foreground">{trade.day_of_week}</span>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              trade.result_type === 'TP' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
-                            }`}>
-                              {trade.result_type}
-                            </span>
+                            {trade.no_trade_day ? (
+                              <span className="text-xs px-2 py-1 rounded bg-warning/20 text-warning">
+                                Día sin entrada
+                              </span>
+                            ) : (
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                trade.result_type === 'TP' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
+                              }`}>
+                                {trade.result_type}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex gap-4 text-sm text-muted-foreground">
-                            <span>Modelo: {trade.entry_model}</span>
-                            <span>Tipo: {trade.trade_type}</span>
-                            <span className={trade.result_dollars >= 0 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
-                              ${Number(trade.result_dollars).toFixed(2)}
-                            </span>
-                          </div>
+                          {!trade.no_trade_day && (
+                            <div className="flex gap-4 text-sm text-muted-foreground">
+                              <span>Modelo: {trade.entry_model}</span>
+                              <span>Tipo: {trade.trade_type}</span>
+                              <span className={trade.result_dollars >= 0 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
+                                ${Number(trade.result_dollars).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {trade.image_link && (
                           <a 
