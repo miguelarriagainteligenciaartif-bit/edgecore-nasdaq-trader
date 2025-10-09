@@ -69,21 +69,21 @@ const Backtesting = () => {
   const calculateMetrics = () => {
     const actualTrades = trades.filter(t => !t.no_trade_day);
     const totalTrades = actualTrades.length;
-    const winningTrades = actualTrades.filter(t => t.result_type === "Win").length;
-    const losingTrades = actualTrades.filter(t => t.result_type === "Loss").length;
+    const winningTrades = actualTrades.filter(t => t.result_type === "TP").length;
+    const losingTrades = actualTrades.filter(t => t.result_type === "SL").length;
     const breakEvenTrades = actualTrades.filter(t => t.result_type === "Break Even").length;
     
     const totalProfit = actualTrades.reduce((sum, t) => sum + Number(t.result_dollars), 0);
     const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
     
     const avgWin = winningTrades > 0 
-      ? actualTrades.filter(t => t.result_type === "Win").reduce((sum, t) => sum + Number(t.result_dollars), 0) / winningTrades 
+      ? actualTrades.filter(t => t.result_type === "TP").reduce((sum, t) => sum + Number(t.result_dollars), 0) / winningTrades 
       : 0;
     const avgLoss = losingTrades > 0 
-      ? Math.abs(actualTrades.filter(t => t.result_type === "Loss").reduce((sum, t) => sum + Number(t.result_dollars), 0) / losingTrades)
+      ? Math.abs(actualTrades.filter(t => t.result_type === "SL").reduce((sum, t) => sum + Number(t.result_dollars), 0) / losingTrades)
       : 0;
     
-    const expectedValue = avgLoss > 0 ? (winRate / 100 * avgWin) - ((1 - winRate / 100) * avgLoss) : 0;
+    const expectedValue = totalTrades > 0 ? (winRate / 100 * avgWin) - ((1 - winRate / 100) * avgLoss) : 0;
 
     return {
       totalTrades,
@@ -102,7 +102,7 @@ const Backtesting = () => {
     const models = ["M1", "M3", "Continuación"];
     return models.map(model => {
       const modelTrades = trades.filter(t => t.entry_model === model && !t.no_trade_day);
-      const wins = modelTrades.filter(t => t.result_type === "Win").length;
+      const wins = modelTrades.filter(t => t.result_type === "TP").length;
       const total = modelTrades.length;
       const profit = modelTrades.reduce((sum, t) => sum + Number(t.result_dollars), 0);
       
@@ -119,7 +119,7 @@ const Backtesting = () => {
     const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
     return days.map(day => {
       const dayTrades = trades.filter(t => t.day_of_week === day && !t.no_trade_day);
-      const wins = dayTrades.filter(t => t.result_type === "Win").length;
+      const wins = dayTrades.filter(t => t.result_type === "TP").length;
       const total = dayTrades.length;
       const profit = dayTrades.reduce((sum, t) => sum + Number(t.result_dollars), 0);
       
@@ -299,7 +299,7 @@ const Backtesting = () => {
                       <span className="text-sm font-semibold">{new Date(trade.date).toLocaleDateString('es-ES')}</span>
                       <span className="text-xs text-muted-foreground">{trade.day_of_week}</span>
                       <span className={`text-xs px-2 py-1 rounded ${
-                        trade.result_type === 'Win' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
+                        trade.result_type === 'TP' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
                       }`}>
                         {trade.result_type}
                       </span>
