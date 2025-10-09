@@ -8,7 +8,7 @@ import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, ExternalLink, Imag
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell } from "recharts";
 import { toast } from "sonner";
 
 interface BacktestTrade {
@@ -269,14 +269,11 @@ const Backtesting = () => {
                     }}
                   />
                   <Bar dataKey="Win Rate (%)" fill="hsl(var(--primary))" />
-                  <Bar 
-                    dataKey="Ganancia"
-                    shape={(props: any) => {
-                      const { x, y, width, height, value } = props;
-                      const color = value >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
-                      return <rect x={x} y={y} width={width} height={height} fill={color} />;
-                    }}
-                  />
+                  <Bar dataKey="Ganancia">
+                    {modelData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.Ganancia >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -305,14 +302,11 @@ const Backtesting = () => {
                     }}
                   />
                   <Bar dataKey="Win Rate (%)" fill="hsl(var(--primary))" />
-                  <Bar 
-                    dataKey="Ganancia"
-                    shape={(props: any) => {
-                      const { x, y, width, height, value } = props;
-                      const color = value >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
-                      return <rect x={x} y={y} width={width} height={height} fill={color} />;
-                    }}
-                  />
+                  <Bar dataKey="Ganancia">
+                    {dayData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.Ganancia >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
