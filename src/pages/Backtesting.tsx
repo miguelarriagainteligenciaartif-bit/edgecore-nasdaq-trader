@@ -108,8 +108,8 @@ const Backtesting = () => {
       
       return {
         modelo: model,
-        "Win Rate (%)": total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0",
-        "Ganancia ($)": profit.toFixed(2),
+        "Win Rate (%)": total > 0 ? Number(((wins / total) * 100).toFixed(1)) : 0,
+        "Ganancia": Number(profit.toFixed(2)),
         operaciones: total
       };
     });
@@ -125,8 +125,8 @@ const Backtesting = () => {
       
       return {
         día: day,
-        "Win Rate (%)": total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0",
-        "Ganancia ($)": profit.toFixed(2),
+        "Win Rate (%)": total > 0 ? Number(((wins / total) * 100).toFixed(1)) : 0,
+        "Ganancia": Number(profit.toFixed(2)),
         operaciones: total
       };
     });
@@ -256,15 +256,24 @@ const Backtesting = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="modelo" />
                   <YAxis />
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip 
+                    formatter={(value: any, name: string) => {
+                      if (name === "Ganancia") return [`$${value}`, "Ganancia ($)"];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend 
+                    formatter={(value: string) => {
+                      if (value === "Ganancia") return "Ganancia ($)";
+                      return value;
+                    }}
+                  />
                   <Bar dataKey="Win Rate (%)" fill="hsl(var(--primary))" />
                   <Bar 
-                    dataKey="Ganancia ($)" 
-                    fill="hsl(var(--success))"
+                    dataKey="Ganancia"
                     shape={(props: any) => {
-                      const { fill, x, y, width, height, value } = props;
-                      const color = parseFloat(value) >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
+                      const { x, y, width, height, value } = props;
+                      const color = value >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
                       return <rect x={x} y={y} width={width} height={height} fill={color} />;
                     }}
                   />
@@ -283,15 +292,24 @@ const Backtesting = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="día" />
                   <YAxis />
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip 
+                    formatter={(value: any, name: string) => {
+                      if (name === "Ganancia") return [`$${value}`, "Ganancia ($)"];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend 
+                    formatter={(value: string) => {
+                      if (value === "Ganancia") return "Ganancia ($)";
+                      return value;
+                    }}
+                  />
                   <Bar dataKey="Win Rate (%)" fill="hsl(var(--primary))" />
                   <Bar 
-                    dataKey="Ganancia ($)" 
-                    fill="hsl(var(--success))"
+                    dataKey="Ganancia"
                     shape={(props: any) => {
-                      const { fill, x, y, width, height, value } = props;
-                      const color = parseFloat(value) >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
+                      const { x, y, width, height, value } = props;
+                      const color = value >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))";
                       return <rect x={x} y={y} width={width} height={height} fill={color} />;
                     }}
                   />
