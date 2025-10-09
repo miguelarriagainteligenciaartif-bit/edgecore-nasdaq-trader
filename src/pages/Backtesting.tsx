@@ -118,6 +118,10 @@ const Backtesting = () => {
 
   const calculateMetrics = () => {
     const actualTrades = trades.filter(t => !t.no_trade_day);
+    const noTradeDays = trades.filter(t => t.no_trade_day).length;
+    const totalDays = trades.length;
+    const noTradeDaysPercentage = totalDays > 0 ? (noTradeDays / totalDays) * 100 : 0;
+    
     const totalTrades = actualTrades.length;
     const winningTrades = actualTrades.filter(t => t.result_type === "TP").length;
     const losingTrades = actualTrades.filter(t => t.result_type === "SL").length;
@@ -137,6 +141,9 @@ const Backtesting = () => {
 
     return {
       totalTrades,
+      totalDays,
+      noTradeDays,
+      noTradeDaysPercentage,
       winningTrades,
       losingTrades,
       breakEvenTrades,
@@ -325,7 +332,7 @@ const Backtesting = () => {
             </div>
 
             {/* Additional Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Operaciones Ganadoras</CardTitle>
@@ -344,7 +351,19 @@ const Backtesting = () => {
                   <p className="text-xs text-muted-foreground">Promedio: -${metrics.avgLoss.toFixed(2)}</p>
                 </CardContent>
               </Card>
+              <Card className="border-warning/20 bg-warning/5">
+                <CardHeader>
+                  <CardTitle className="text-sm text-warning">Días sin Operación</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-warning">{metrics.noTradeDays}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {metrics.noTradeDaysPercentage.toFixed(1)}% del total de días ({metrics.totalDays})
+                  </p>
+                </CardContent>
+              </Card>
             </div>
+
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
