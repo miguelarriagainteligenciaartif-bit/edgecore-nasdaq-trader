@@ -76,7 +76,9 @@ export default function EquityCurve() {
 
   const equityCurveData = () => {
     if (selectedAccount !== "all") {
-      let cumulative = 0;
+      const account = accounts.find(acc => acc.id === selectedAccount);
+      const initialBalance = account ? Number(account.initial_balance) : 0;
+      let cumulative = initialBalance;
       return actualTrades.map((trade, index) => {
         cumulative += (trade.result_dollars || 0);
         return {
@@ -100,9 +102,11 @@ export default function EquityCurve() {
     const accountCumulatives: Record<string, number> = {};
     
     accounts.forEach(acc => {
-      accountCumulatives[acc.id] = 0;
+      accountCumulatives[acc.id] = Number(acc.initial_balance);
     });
-    accountCumulatives["total"] = 0;
+    
+    let totalInitialBalance = accounts.reduce((sum, acc) => sum + Number(acc.initial_balance), 0);
+    accountCumulatives["total"] = totalInitialBalance;
 
     return dates.map((date, index) => {
       const dayTrades = tradesByDate[date];
