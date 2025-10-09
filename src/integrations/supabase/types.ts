@@ -80,6 +80,39 @@ export type Database = {
         }
         Relationships: []
       }
+      backtest_strategies: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          initial_capital: number
+          name: string
+          risk_reward_ratio: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          initial_capital?: number
+          name: string
+          risk_reward_ratio?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          initial_capital?: number
+          name?: string
+          risk_reward_ratio?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       backtest_trades: {
         Row: {
           created_at: string
@@ -99,6 +132,7 @@ export type Database = {
           result_dollars: number
           result_type: string
           risk_percentage: number
+          strategy_id: string | null
           trade_type: string
           updated_at: string
           user_id: string
@@ -122,6 +156,7 @@ export type Database = {
           result_dollars: number
           result_type: string
           risk_percentage?: number
+          strategy_id?: string | null
           trade_type: string
           updated_at?: string
           user_id: string
@@ -145,12 +180,21 @@ export type Database = {
           result_dollars?: number
           result_type?: string
           risk_percentage?: number
+          strategy_id?: string | null
           trade_type?: string
           updated_at?: string
           user_id?: string
           week_of_month?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "backtest_trades_strategy_id_fkey"
+            columns: ["strategy_id"]
+            isOneToOne: false
+            referencedRelation: "backtest_strategies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trades: {
         Row: {

@@ -34,9 +34,10 @@ const formSchema = z.object({
 interface TradeFormProps {
   onSuccess: () => void;
   isBacktest?: boolean;
+  strategyId?: string;
 }
 
-export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => {
+export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFormProps) => {
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
 
@@ -108,8 +109,10 @@ export const TradeForm = ({ onSuccess, isBacktest = false }: TradeFormProps) => 
         risk_percentage: values.risk_percentage ? parseFloat(values.risk_percentage) : 1,
       };
 
-      // Only add account_id for regular trades (not backtest)
-      if (!isBacktest) {
+      // Add account_id for regular trades or strategy_id for backtest trades
+      if (isBacktest) {
+        insertData.strategy_id = strategyId;
+      } else {
         insertData.account_id = values.account_id || null;
       }
 
