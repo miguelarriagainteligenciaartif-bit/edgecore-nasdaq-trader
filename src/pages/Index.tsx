@@ -88,6 +88,36 @@ export default function Index() {
     : trades.filter(t => t.account_id === selectedAccount);
   
   const actualTrades = filteredTrades.filter(t => !t.no_trade_day);
+
+  // Calcular rachas consecutivas
+  let currentTPStreak = 0;
+  let bestTPStreak = 0;
+  let currentSLStreak = 0;
+  let worstSLStreak = 0;
+
+  const sortedTrades = [...actualTrades].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  sortedTrades.forEach(trade => {
+    if (trade.result_type === "TP") {
+      currentTPStreak++;
+      currentSLStreak = 0;
+      if (currentTPStreak > bestTPStreak) {
+        bestTPStreak = currentTPStreak;
+      }
+    } else if (trade.result_type === "SL") {
+      currentSLStreak++;
+      currentTPStreak = 0;
+      if (currentSLStreak > worstSLStreak) {
+        worstSLStreak = currentSLStreak;
+      }
+    } else {
+      currentTPStreak = 0;
+      currentSLStreak = 0;
+    }
+  });
+
   const stats = {
     totalPnL: actualTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0),
     totalTrades: actualTrades.length,
@@ -99,6 +129,8 @@ export default function Index() {
     avgRisk: actualTrades.length > 0 
       ? actualTrades.reduce((sum, t) => sum + (t.risk_percentage || 1), 0) / actualTrades.length 
       : 0,
+    bestTPStreak,
+    worstSLStreak,
   };
 
   const winRate = stats.totalTrades > 0 ? ((stats.winningTrades / stats.totalTrades) * 100).toFixed(1) : 0;
@@ -186,7 +218,7 @@ export default function Index() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
           <StatsCard
             title="P&L Total"
             value={`$${stats.totalPnL.toFixed(2)}`}
@@ -224,6 +256,20 @@ export default function Index() {
             }
             icon={Layers}
             trend="neutral"
+          />
+          <StatsCard
+            title="Mejor Racha TP"
+            value={stats.bestTPStreak}
+            icon={TrendingUp}
+            trend="up"
+            subtitle="Consecutivos"
+          />
+          <StatsCard
+            title="Peor Racha SL"
+            value={stats.worstSLStreak}
+            icon={TrendingDown}
+            trend="down"
+            subtitle="Consecutivos"
           />
         </div>
 
