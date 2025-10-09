@@ -60,6 +60,18 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
       account_id: "",
       risk_percentage: "1",
       asset: "Nasdaq 100",
+      entry_time: "",
+      exit_time: "",
+      trade_type: undefined,
+      result_type: undefined,
+      entry_model: undefined,
+      image_link: "",
+      news_description: undefined,
+      custom_news_description: "",
+      news_time: undefined,
+      execution_timing: undefined,
+      date: "",
+      day_of_week: undefined,
     },
   });
 
@@ -134,7 +146,26 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
       if (error) throw error;
 
       toast.success(values.no_trade_day ? "Día sin entrada registrado" : `Operación ${isBacktest ? 'de backtesting' : ''} registrada exitosamente`);
-      form.reset();
+      form.reset({
+        no_trade_day: false,
+        had_news: false,
+        result_dollars: "0",
+        account_id: "",
+        risk_percentage: "1",
+        asset: "Nasdaq 100",
+        entry_time: "",
+        exit_time: "",
+        trade_type: undefined,
+        result_type: undefined,
+        entry_model: undefined,
+        image_link: "",
+        news_description: undefined,
+        custom_news_description: "",
+        news_time: undefined,
+        execution_timing: undefined,
+        date: "",
+        day_of_week: undefined,
+      });
       onSuccess();
     } catch (error: any) {
       toast.error(error.message || "Error al registrar");
