@@ -31,6 +31,8 @@ interface BacktestTrade {
   no_trade_day: boolean;
   image_link: string | null;
   strategy_id: string | null;
+  max_rr: number | null;
+  drawdown: number | null;
 }
 
 interface Strategy {
@@ -168,6 +170,12 @@ const Backtesting = () => {
       }
     });
 
+    // Calcular RR máximo promedio
+    const tradesWithMaxRR = actualTrades.filter(t => t.max_rr !== null && t.max_rr !== undefined);
+    const avgMaxRR = tradesWithMaxRR.length > 0
+      ? tradesWithMaxRR.reduce((sum, t) => sum + (t.max_rr || 0), 0) / tradesWithMaxRR.length
+      : 0;
+
     return {
       totalTrades,
       totalDays,
@@ -182,7 +190,9 @@ const Backtesting = () => {
       avgLoss,
       expectedValue,
       bestTPStreak,
-      worstSLStreak
+      worstSLStreak,
+      avgMaxRR,
+      tradesWithMaxRR: tradesWithMaxRR.length
     };
   };
 
@@ -327,7 +337,7 @@ const Backtesting = () => {
             )}
 
             {/* Main Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
               <StatsCard
                 title="Capital Inicial"
                 value={`$${initialCapital.toFixed(2)}`}
@@ -359,6 +369,13 @@ const Backtesting = () => {
                 icon={TrendingUp}
                 trend={metrics.expectedValue > 0 ? "up" : "down"}
                 subtitle="Por operación"
+              />
+              <StatsCard
+                title="RR Máximo Promedio"
+                value={metrics.avgMaxRR > 0 ? metrics.avgMaxRR.toFixed(2) : "N/A"}
+                icon={TrendingUp}
+                trend="up"
+                subtitle={`${metrics.tradesWithMaxRR} ops con RR máx`}
               />
             </div>
 
