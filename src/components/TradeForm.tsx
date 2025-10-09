@@ -29,6 +29,15 @@ const formSchema = z.object({
   result_dollars: z.string().optional(),
   image_link: z.string().url().optional().or(z.literal("")),
   risk_percentage: z.string().default("1"),
+}).refine((data) => {
+  // Si es día sin entrada, no necesitamos validar los campos de operación
+  if (data.no_trade_day) return true;
+  
+  // Si no es día sin entrada, validamos que los campos obligatorios estén presentes
+  return data.entry_time && data.trade_type && data.result_type && data.entry_model && data.result_dollars;
+}, {
+  message: "Completa todos los campos obligatorios para la operación",
+  path: ["entry_time"], // Muestra el error en el primer campo
 });
 
 interface TradeFormProps {
