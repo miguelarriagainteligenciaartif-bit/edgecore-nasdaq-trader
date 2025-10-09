@@ -123,6 +123,7 @@ export type Database = {
           custom_news_description: string | null
           date: string
           day_of_week: string
+          drawdown: number | null
           entry_model: string
           entry_time: string
           execution_timing: string | null
@@ -148,6 +149,7 @@ export type Database = {
           custom_news_description?: string | null
           date: string
           day_of_week: string
+          drawdown?: number | null
           entry_model: string
           entry_time: string
           execution_timing?: string | null
@@ -173,6 +175,7 @@ export type Database = {
           custom_news_description?: string | null
           date?: string
           day_of_week?: string
+          drawdown?: number | null
           entry_model?: string
           entry_time?: string
           execution_timing?: string | null
@@ -210,6 +213,7 @@ export type Database = {
           custom_news_description: string | null
           date: string
           day_of_week: string
+          drawdown: number | null
           entry_model: string
           entry_time: string
           execution_timing: string | null
@@ -235,6 +239,7 @@ export type Database = {
           custom_news_description?: string | null
           date: string
           day_of_week: string
+          drawdown?: number | null
           entry_model: string
           entry_time: string
           execution_timing?: string | null
@@ -260,6 +265,7 @@ export type Database = {
           custom_news_description?: string | null
           date?: string
           day_of_week?: string
+          drawdown?: number | null
           entry_model?: string
           entry_time?: string
           execution_timing?: string | null

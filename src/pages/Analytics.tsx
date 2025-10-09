@@ -17,6 +17,7 @@ interface Trade {
   exit_time: string | null;
   trade_type: string | null;
   result_type: string | null;
+  drawdown: number | null;
   entry_model: string | null;
   result_dollars: number | null;
   had_news: boolean;
@@ -87,6 +88,12 @@ export default function Analytics() {
         const exitTotalMinutes = exitHours * 60 + exitMinutes;
         return sum + (exitTotalMinutes - entryTotalMinutes);
       }, 0) / tradesWithDuration.length
+    : 0;
+
+  // Calculate average drawdown for TP trades
+  const tpTradesWithDrawdown = winningTrades.filter(t => t.drawdown !== null && t.drawdown !== undefined);
+  const avgDrawdownTP = tpTradesWithDrawdown.length > 0
+    ? tpTradesWithDrawdown.reduce((sum, t) => sum + (t.drawdown || 0), 0) / tpTradesWithDrawdown.length
     : 0;
 
   // Analysis by entry model
@@ -207,7 +214,7 @@ export default function Analytics() {
         </div>
 
         {/* Additional Metrics */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardHeader>
               <CardTitle>Mejor Modelo</CardTitle>
@@ -255,7 +262,20 @@ export default function Analytics() {
             <CardContent>
               <div className="text-3xl font-bold">{avgDurationMinutes.toFixed(0)} min</div>
               <p className="text-sm text-muted-foreground mt-2">
-                {tradesWithDuration.length} operaciones con duración registrada
+                {tradesWithDuration.length} operaciones con duración
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>DrawDown Promedio TP</CardTitle>
+              <CardDescription>En operaciones ganadoras</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{(avgDrawdownTP * 100).toFixed(0)}%</div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {tpTradesWithDrawdown.length} TPs con DrawDown registrado
               </p>
             </CardContent>
           </Card>

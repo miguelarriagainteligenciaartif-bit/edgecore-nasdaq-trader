@@ -21,6 +21,7 @@ const formSchema = z.object({
   exit_time: z.string().optional(),
   trade_type: z.enum(["Compra", "Venta"]).optional(),
   result_type: z.enum(["TP", "SL"]).optional(),
+  drawdown: z.enum(["0.33", "0.50", "0.66", "0.90", "1.00"]).optional(),
   had_news: z.boolean().default(false),
   news_description: z.enum(["NFP", "CPI", "PMI Servicios", "PMI Manufacturing", "PCE", "Flash PMI", "FOMC", "Ventas Minoristas", "Otra"]).optional(),
   custom_news_description: z.string().optional(),
@@ -95,6 +96,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
       exit_time: "",
       trade_type: undefined,
       result_type: undefined,
+      drawdown: undefined,
       entry_model: undefined,
       image_link: "",
       news_description: undefined,
@@ -154,6 +156,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
         exit_time: values.exit_time || null,
         trade_type: values.no_trade_day ? "Compra" : values.trade_type,
         result_type: values.no_trade_day ? "TP" : values.result_type,
+        drawdown: values.drawdown ? parseFloat(values.drawdown) : null,
         had_news: values.had_news,
         news_description: values.news_description || null,
         custom_news_description: values.custom_news_description || null,
@@ -188,6 +191,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
         exit_time: "",
         trade_type: undefined,
         result_type: undefined,
+        drawdown: undefined,
         entry_model: undefined,
         image_link: "",
         news_description: undefined,
@@ -387,6 +391,31 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
                       <SelectContent>
                         <SelectItem value="TP">TP (Take Profit)</SelectItem>
                         <SelectItem value="SL">SL (Stop Loss)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="drawdown"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>DrawDown Recorrido</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={noTradeDay}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona DrawDown" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="0.33">0.33 (33%)</SelectItem>
+                        <SelectItem value="0.50">0.50 (50%)</SelectItem>
+                        <SelectItem value="0.66">0.66 (66%)</SelectItem>
+                        <SelectItem value="0.90">0.90 (90%)</SelectItem>
+                        <SelectItem value="1.00">Full (SL completo)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
