@@ -67,19 +67,20 @@ const Backtesting = () => {
   };
 
   const calculateMetrics = () => {
-    const totalTrades = trades.filter(t => !t.no_trade_day).length;
-    const winningTrades = trades.filter(t => t.result_type === "Win").length;
-    const losingTrades = trades.filter(t => t.result_type === "Loss").length;
-    const breakEvenTrades = trades.filter(t => t.result_type === "Break Even").length;
+    const actualTrades = trades.filter(t => !t.no_trade_day);
+    const totalTrades = actualTrades.length;
+    const winningTrades = actualTrades.filter(t => t.result_type === "Win").length;
+    const losingTrades = actualTrades.filter(t => t.result_type === "Loss").length;
+    const breakEvenTrades = actualTrades.filter(t => t.result_type === "Break Even").length;
     
-    const totalProfit = trades.reduce((sum, t) => sum + Number(t.result_dollars), 0);
+    const totalProfit = actualTrades.reduce((sum, t) => sum + Number(t.result_dollars), 0);
     const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
     
     const avgWin = winningTrades > 0 
-      ? trades.filter(t => t.result_type === "Win").reduce((sum, t) => sum + Number(t.result_dollars), 0) / winningTrades 
+      ? actualTrades.filter(t => t.result_type === "Win").reduce((sum, t) => sum + Number(t.result_dollars), 0) / winningTrades 
       : 0;
     const avgLoss = losingTrades > 0 
-      ? Math.abs(trades.filter(t => t.result_type === "Loss").reduce((sum, t) => sum + Number(t.result_dollars), 0) / losingTrades)
+      ? Math.abs(actualTrades.filter(t => t.result_type === "Loss").reduce((sum, t) => sum + Number(t.result_dollars), 0) / losingTrades)
       : 0;
     
     const expectedValue = avgLoss > 0 ? (winRate / 100 * avgWin) - ((1 - winRate / 100) * avgLoss) : 0;
