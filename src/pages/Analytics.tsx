@@ -77,6 +77,18 @@ export default function Analytics() {
     : 0;
   const expectedValue = avgWin * (winRate / 100) - avgLoss * (1 - winRate / 100);
 
+  // Calculate average trade duration in minutes
+  const tradesWithDuration = actualTrades.filter(t => t.entry_time && t.exit_time);
+  const avgDurationMinutes = tradesWithDuration.length > 0
+    ? tradesWithDuration.reduce((sum, t) => {
+        const [entryHours, entryMinutes] = (t.entry_time || "00:00").split(":").map(Number);
+        const [exitHours, exitMinutes] = (t.exit_time || "00:00").split(":").map(Number);
+        const entryTotalMinutes = entryHours * 60 + entryMinutes;
+        const exitTotalMinutes = exitHours * 60 + exitMinutes;
+        return sum + (exitTotalMinutes - entryTotalMinutes);
+      }, 0) / tradesWithDuration.length
+    : 0;
+
   // Analysis by entry model
   const modelStats = ["M1", "M3", "Continuación"].map(model => {
     const modelTrades = actualTrades.filter(t => t.entry_model === model);
@@ -195,7 +207,7 @@ export default function Analytics() {
         </div>
 
         {/* Additional Metrics */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader>
               <CardTitle>Mejor Modelo</CardTitle>
@@ -231,6 +243,19 @@ export default function Analytics() {
               <div className="text-3xl font-bold text-destructive">${avgLoss.toFixed(2)}</div>
               <p className="text-sm text-muted-foreground mt-2">
                 {losingTrades.length} operaciones perdedoras
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Duración Promedio</CardTitle>
+              <CardDescription>Tiempo en operación</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{avgDurationMinutes.toFixed(0)} min</div>
+              <p className="text-sm text-muted-foreground mt-2">
+                {tradesWithDuration.length} operaciones con duración registrada
               </p>
             </CardContent>
           </Card>
