@@ -1,4 +1,4 @@
-import { BarChart3, FlaskConical } from "lucide-react";
+import { BarChart3, FlaskConical, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -65,6 +65,14 @@ export const Header = ({ userName }: HeaderProps) => {
               >
                 <FlaskConical className="mr-2 h-4 w-4" />
                 Backtesting
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/edgecore-x5")}
+              >
+                <Activity className="mr-2 h-4 w-4" />
+                X5 Simulator
               </Button>
             </nav>
           </div>

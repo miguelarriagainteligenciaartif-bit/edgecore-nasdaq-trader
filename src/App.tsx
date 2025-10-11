@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Analytics from "./pages/Analytics";
 import EquityCurve from "./pages/EquityCurve";
 import Backtesting from "./pages/Backtesting";
+import EdgecoreX5 from "./pages/EdgecoreX5";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ function App() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/equity-curve" element={<EquityCurve />} />
             <Route path="/backtesting" element={<Backtesting />} />
+            <Route path="/edgecore-x5" element={<EdgecoreX5 />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
