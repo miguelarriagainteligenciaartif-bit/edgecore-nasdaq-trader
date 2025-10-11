@@ -47,6 +47,8 @@ export const simulateFlipX5 = (
   
   let currentCycle = 1;
   let tradesInCycle = 0;
+  let previousTradeProfit = 0;
+  let previousTradeResult: TradeResult | null = null;
   
   tradeResults.forEach((result, index) => {
     const tradeNumber = index + 1;
@@ -63,15 +65,10 @@ export const simulateFlipX5 = (
     // Leveraged calculation
     let riskLeveraged = riskPerCycle / cycleSize;
     
-    if (currentCycle > 1) {
-      const prevCycle = currentCycle - 1;
-      if (cycleData[prevCycle]) {
-        const prevProfit = cycleData[prevCycle].profit;
-        if (prevProfit > 0) {
-          const reinvestAmount = (prevProfit * reinvestPercent) / 100;
-          riskLeveraged = (riskPerCycle + reinvestAmount) / cycleSize;
-        }
-      }
+    // Si es el segundo trade del ciclo Y el anterior fue TP, aplicar reinversión
+    if (tradesInCycle === 1 && previousTradeResult === 'TP' && previousTradeProfit > 0) {
+      const reinvestAmount = (previousTradeProfit * reinvestPercent) / 100;
+      riskLeveraged = (riskPerCycle / cycleSize) + reinvestAmount;
     }
     
     const pnlLeveraged = result === 'TP' ? riskLeveraged * rrRatio : -riskLeveraged;
@@ -96,10 +93,16 @@ export const simulateFlipX5 = (
       balanceLeveraged,
     });
     
+    // Guardar el resultado y profit del trade actual para el siguiente
+    previousTradeResult = result;
+    previousTradeProfit = pnlLeveraged;
+    
     tradesInCycle++;
     if (tradesInCycle >= cycleSize) {
       currentCycle++;
       tradesInCycle = 0;
+      previousTradeProfit = 0;
+      previousTradeResult = null;
     }
   });
   
