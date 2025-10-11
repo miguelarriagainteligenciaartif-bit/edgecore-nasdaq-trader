@@ -11,6 +11,7 @@ import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, Layers } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { cn } from "@/lib/utils";
@@ -46,10 +47,18 @@ export default function Index() {
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [tradesLimit, setTradesLimit] = useState(50);
+  const [hasMoreTrades, setHasMoreTrades] = useState(false);
 
   useEffect(() => {
     checkUser();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadTrades();
+    }
+  }, [tradesLimit]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -68,10 +77,11 @@ export default function Index() {
       .select("*")
       .order("date", { ascending: false })
       .order("entry_time", { ascending: false })
-      .limit(50);
+      .limit(tradesLimit + 1);
 
     if (!error && data) {
-      setTrades(data);
+      setHasMoreTrades(data.length > tradesLimit);
+      setTrades(data.slice(0, tradesLimit));
     }
 
     const { data: accountsData } = await supabase
@@ -283,8 +293,15 @@ export default function Index() {
         {/* Recent Trades Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Operaciones Recientes</CardTitle>
-            <CardDescription>Últimas 50 operaciones registradas</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Operaciones Recientes</CardTitle>
+                <CardDescription>
+                  Mostrando {trades.length} operación{trades.length !== 1 ? 'es' : ''}
+                  {hasMoreTrades && ' - Hay más operaciones disponibles'}
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -353,6 +370,17 @@ export default function Index() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            {hasMoreTrades && (
+              <div className="mt-4 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setTradesLimit(prev => prev + 50)}
+                  disabled={loading}
+                >
+                  Cargar 50 operaciones más
+                </Button>
               </div>
             )}
           </CardContent>
