@@ -6,6 +6,7 @@ import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { AccountManager } from "@/components/AccountManager";
+import { TradeDetailsDialog } from "@/components/TradeDetailsDialog";
 import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,6 +44,8 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -303,7 +306,14 @@ export default function Index() {
                   </TableHeader>
                   <TableBody>
                     {trades.map((trade) => (
-                      <TableRow key={trade.id}>
+                      <TableRow 
+                        key={trade.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => {
+                          setSelectedTrade(trade);
+                          setDetailsOpen(true);
+                        }}
+                      >
                         <TableCell>{trade.date}</TableCell>
                         <TableCell>{trade.entry_time || "N/A"}</TableCell>
                         <TableCell>
@@ -347,6 +357,13 @@ export default function Index() {
             )}
           </CardContent>
         </Card>
+
+        {/* Trade Details Dialog */}
+        <TradeDetailsDialog 
+          trade={selectedTrade}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+        />
       </main>
     </div>
   );
