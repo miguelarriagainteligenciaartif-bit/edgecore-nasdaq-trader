@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Header } from "@/components/Header";
 import { FlipConfigForm } from "@/components/FlipConfigForm";
 import { FlipTradeInput } from "@/components/FlipTradeInput";
 import { FlipResultsTable } from "@/components/FlipResultsTable";
@@ -7,7 +8,7 @@ import { FlipSummaryCards } from "@/components/FlipSummaryCards";
 import { FlipChart } from "@/components/FlipChart";
 import { FlipConfig, TradeResult, simulateFlipX5 } from "@/utils/flipX5Simulator";
 import { Button } from "@/components/ui/button";
-import { Save, LogOut, LogIn } from "lucide-react";
+import { Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -72,7 +73,9 @@ const EdgecoreX5 = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/95">
-      {/* Header */}
+      <Header userName={user?.email} />
+      
+      {/* Title Section */}
       <div className="border-b border-border/50 backdrop-blur-sm bg-card/30">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
@@ -85,24 +88,12 @@ const EdgecoreX5 = () => {
                 Gestión de Riesgo con Apalancado Personalizado
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {trades.length > 0 && user && (
-                <Button onClick={handleSave} variant="default" size="sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  Guardar
-                </Button>
-              )}
-              {user ? (
-                <Button onClick={handleSignOut} variant="outline" size="icon">
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button onClick={() => navigate("/auth")} variant="outline">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Login
-                </Button>
-              )}
-            </div>
+            {trades.length > 0 && user && (
+              <Button onClick={handleSave} variant="default" size="sm">
+                <Save className="h-4 w-4 mr-2" />
+                Guardar
+              </Button>
+            )}
           </div>
         </div>
       </div>
