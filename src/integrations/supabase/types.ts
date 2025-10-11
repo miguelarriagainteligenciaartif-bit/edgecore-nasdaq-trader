@@ -208,6 +208,48 @@ export type Database = {
           },
         ]
       }
+      flip_simulations: {
+        Row: {
+          account_size: number
+          created_at: string
+          cycle_size: number
+          id: string
+          name: string
+          reinvest_percent: number
+          risk_per_cycle: number
+          rr_ratio: number
+          trade_results: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_size?: number
+          created_at?: string
+          cycle_size?: number
+          id?: string
+          name?: string
+          reinvest_percent?: number
+          risk_per_cycle?: number
+          rr_ratio?: number
+          trade_results?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_size?: number
+          created_at?: string
+          cycle_size?: number
+          id?: string
+          name?: string
+          reinvest_percent?: number
+          risk_per_cycle?: number
+          rr_ratio?: number
+          trade_results?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           account_id: string | null
