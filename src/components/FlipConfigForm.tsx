@@ -23,7 +23,17 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
   );
 
   const handleChange = (field: keyof FlipConfig, value: number | boolean) => {
-    const newConfig = { ...config, [field]: value };
+    let newConfig = { ...config, [field]: value };
+    
+    // Si se activa el modo porcentaje y el riesgo es muy alto, ajustarlo a un valor razonable
+    if (field === "usePercentageRisk" && value === true && config.riskPerCycle > 10) {
+      newConfig.riskPerCycle = 1; // 1% por defecto
+    }
+    // Si se desactiva el modo porcentaje y el riesgo es muy bajo, ajustarlo
+    if (field === "usePercentageRisk" && value === false && config.riskPerCycle < 10) {
+      newConfig.riskPerCycle = 200; // $200 por defecto
+    }
+    
     setConfig(newConfig);
     onConfigChange(newConfig);
   };
