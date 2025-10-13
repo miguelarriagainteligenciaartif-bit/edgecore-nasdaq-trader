@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, TrendingUp, TrendingDown, DollarSign, Percent, ExternalLink, ImageIcon, Target } from "lucide-react";
 import { StatsCard } from "@/components/StatsCard";
 import { TradeForm } from "@/components/TradeForm";
+import { EditTradeForm } from "@/components/EditTradeForm";
 import { StrategyManager } from "@/components/StrategyManager";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Cell } from "recharts";
@@ -50,6 +51,8 @@ const Backtesting = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
   const [currentStrategy, setCurrentStrategy] = useState<Strategy | null>(null);
+  const [selectedTrade, setSelectedTrade] = useState<BacktestTrade | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -515,11 +518,15 @@ const Backtesting = () => {
                     trades.slice(0, 10).map((trade) => (
                       <div 
                         key={trade.id} 
-                        className={`flex items-start justify-between p-4 border rounded-lg transition-colors ${
+                        className={`flex items-start justify-between p-4 border rounded-lg transition-colors cursor-pointer ${
                           trade.no_trade_day 
                             ? 'bg-warning/5 border-warning/20' 
                             : 'hover:bg-accent/5'
                         }`}
+                        onClick={() => {
+                          setSelectedTrade(trade);
+                          setEditDialogOpen(true);
+                        }}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
@@ -610,6 +617,25 @@ const Backtesting = () => {
             </Card>
           </>
         )}
+
+        {/* Edit Trade Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar Operación</DialogTitle>
+            </DialogHeader>
+            {selectedTrade && (
+              <EditTradeForm
+                trade={selectedTrade}
+                isBacktest={true}
+                onSuccess={() => {
+                  setEditDialogOpen(false);
+                  fetchTrades();
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

@@ -21,7 +21,7 @@ const formSchema = z.object({
   exit_time: z.string().optional(),
   trade_type: z.enum(["Compra", "Venta"]).optional(),
   result_type: z.enum(["TP", "SL"]).optional(),
-  drawdown: z.enum(["0.33", "0.50", "0.66", "0.90", "1.00"]).optional(),
+  drawdown: z.enum(["0", "0.33", "0.50", "0.66", "0.90", "1.00"]).optional(),
   max_rr: z.union([
     z.string(),
     z.number(),
@@ -418,6 +418,7 @@ export const TradeForm = ({ onSuccess, isBacktest = false, strategyId }: TradeFo
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="0">0 (Directo sin retroceso)</SelectItem>
                         <SelectItem value="0.33">0.33 (33%)</SelectItem>
                         <SelectItem value="0.50">0.50 (50%)</SelectItem>
                         <SelectItem value="0.66">0.66 (66%)</SelectItem>
