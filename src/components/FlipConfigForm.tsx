@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { FlipConfig } from "@/utils/flipX5Simulator";
 import { Settings } from "lucide-react";
 
@@ -21,7 +22,7 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
     }
   );
 
-  const handleChange = (field: keyof FlipConfig, value: number) => {
+  const handleChange = (field: keyof FlipConfig, value: number | boolean) => {
     const newConfig = { ...config, [field]: value };
     setConfig(newConfig);
     onConfigChange(newConfig);
@@ -29,9 +30,21 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
 
   return (
     <Card className="p-6 bg-card/30 border-border/50">
-      <div className="flex items-center gap-2 mb-4">
-        <Settings className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Configuración de Cuenta</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Settings className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold">Configuración de Cuenta</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="useFixedDollars" className="text-sm cursor-pointer">
+            Usar dólares fijos
+          </Label>
+          <Switch
+            id="useFixedDollars"
+            checked={config.useFixedDollars || false}
+            onCheckedChange={(checked) => handleChange("useFixedDollars", checked)}
+          />
+        </div>
       </div>
       
       <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -63,7 +76,9 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="riskPerCycle">Riesgo por Ciclo ($)</Label>
+          <Label htmlFor="riskPerCycle">
+            {config.useFixedDollars ? "Riesgo Fijo ($)" : "Riesgo por Ciclo ($)"}
+          </Label>
           <Input
             id="riskPerCycle"
             type="number"
@@ -72,6 +87,9 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
             value={config.riskPerCycle}
             onChange={(e) => handleChange("riskPerCycle", parseFloat(e.target.value))}
           />
+          {config.useFixedDollars && (
+            <p className="text-xs text-muted-foreground">Monto fijo por trade</p>
+          )}
         </div>
 
         <div className="space-y-2">
