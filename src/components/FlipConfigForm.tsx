@@ -36,13 +36,13 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
           <h3 className="text-lg font-semibold">Configuración de Cuenta</h3>
         </div>
         <div className="flex items-center gap-2">
-          <Label htmlFor="useFixedDollars" className="text-sm cursor-pointer">
-            Usar dólares fijos
+          <Label htmlFor="usePercentageRisk" className="text-sm cursor-pointer">
+            Usar porcentaje fijo
           </Label>
           <Switch
-            id="useFixedDollars"
-            checked={config.useFixedDollars || false}
-            onCheckedChange={(checked) => handleChange("useFixedDollars", checked)}
+            id="usePercentageRisk"
+            checked={config.usePercentageRisk || false}
+            onCheckedChange={(checked) => handleChange("usePercentageRisk", checked)}
           />
         </div>
       </div>
@@ -77,18 +77,18 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
 
         <div className="space-y-2">
           <Label htmlFor="riskPerCycle">
-            {config.useFixedDollars ? "Riesgo Fijo ($)" : "Riesgo por Ciclo ($)"}
+            {config.usePercentageRisk ? "Riesgo por Ciclo (%)" : "Riesgo por Ciclo ($)"}
           </Label>
           <Input
             id="riskPerCycle"
             type="number"
             min="0"
-            step="10"
+            step={config.usePercentageRisk ? "0.1" : "10"}
             value={config.riskPerCycle}
             onChange={(e) => handleChange("riskPerCycle", parseFloat(e.target.value))}
           />
-          {config.useFixedDollars && (
-            <p className="text-xs text-muted-foreground">Monto fijo por trade</p>
+          {config.usePercentageRisk && (
+            <p className="text-xs text-muted-foreground">% del balance actual</p>
           )}
         </div>
 

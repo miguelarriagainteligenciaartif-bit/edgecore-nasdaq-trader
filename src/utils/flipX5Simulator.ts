@@ -4,7 +4,7 @@ export interface FlipConfig {
   riskPerCycle: number;
   rrRatio: number;
   reinvestPercent: number;
-  useFixedDollars?: boolean; // Si es true, usa riskPerCycle como dólares fijos
+  usePercentageRisk?: boolean; // Si es true, usa riskPerCycle como % del balance actual
 }
 
 export type TradeResult = 'TP' | 'SL';
@@ -38,7 +38,7 @@ export const simulateFlipX5 = (
   config: FlipConfig,
   tradeResults: TradeResult[]
 ): SimulationResult => {
-  const { accountSize, cycleSize, riskPerCycle, rrRatio, reinvestPercent, useFixedDollars = false } = config;
+  const { accountSize, cycleSize, riskPerCycle, rrRatio, reinvestPercent, usePercentageRisk = false } = config;
   
   let balanceTraditional = accountSize;
   let balanceLeveraged = accountSize;
@@ -62,12 +62,12 @@ export const simulateFlipX5 = (
     let riskTraditional: number;
     let pnlTraditional: number;
     
-    if (useFixedDollars) {
-      // Modo dólares fijos: usa riskPerCycle como el monto fijo en dólares
-      riskTraditional = riskPerCycle;
+    if (usePercentageRisk) {
+      // Modo porcentaje: calcula el riesgo como % del balance actual
+      riskTraditional = (balanceTraditional * riskPerCycle) / 100 / cycleSize;
       pnlTraditional = result === 'TP' ? riskTraditional * rrRatio : -riskTraditional;
     } else {
-      // Modo porcentaje: calcula basado en el balance actual
+      // Modo dólares fijos: usa riskPerCycle como el monto fijo total por ciclo
       riskTraditional = riskPerCycle / cycleSize;
       pnlTraditional = result === 'TP' ? riskTraditional * rrRatio : -riskTraditional;
     }
@@ -77,17 +77,17 @@ export const simulateFlipX5 = (
     // Leveraged calculation
     let riskLeveraged: number;
     
-    if (useFixedDollars) {
-      // Modo dólares fijos
-      riskLeveraged = riskPerCycle;
+    if (usePercentageRisk) {
+      // Modo porcentaje: calcula el riesgo como % del balance actual
+      riskLeveraged = (balanceLeveraged * riskPerCycle) / 100 / cycleSize;
       
       // Si es el segundo trade del ciclo Y el anterior fue TP, aplicar reinversión
       if (tradesInCycle === 1 && previousTradeResult === 'TP' && previousTradeProfit > 0) {
         const reinvestAmount = (previousTradeProfit * reinvestPercent) / 100;
-        riskLeveraged = riskPerCycle + reinvestAmount;
+        riskLeveraged = (balanceLeveraged * riskPerCycle) / 100 / cycleSize + reinvestAmount;
       }
     } else {
-      // Modo porcentaje
+      // Modo dólares fijos
       riskLeveraged = riskPerCycle / cycleSize;
       
       // Si es el segundo trade del ciclo Y el anterior fue TP, aplicar reinversión
