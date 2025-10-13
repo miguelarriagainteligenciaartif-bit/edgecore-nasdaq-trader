@@ -53,6 +53,8 @@ const Backtesting = () => {
   const [currentStrategy, setCurrentStrategy] = useState<Strategy | null>(null);
   const [selectedTrade, setSelectedTrade] = useState<BacktestTrade | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [tradesLimit, setTradesLimit] = useState(10);
+  const [hasMoreTrades, setHasMoreTrades] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -507,6 +509,11 @@ const Backtesting = () => {
             <Card className="mb-8">
               <CardHeader>
                 <CardTitle>Operaciones Recientes</CardTitle>
+                {trades.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando {Math.min(tradesLimit, trades.length)} de {trades.length} operaciones
+                  </p>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -515,7 +522,8 @@ const Backtesting = () => {
                       No hay registros para esta estrategia
                     </p>
                   ) : (
-                    trades.slice(0, 10).map((trade) => (
+                    <>
+                      {trades.slice(0, tradesLimit).map((trade) => (
                       <div 
                         key={trade.id} 
                         className={`flex items-start justify-between p-4 border rounded-lg transition-colors cursor-pointer ${
@@ -567,7 +575,19 @@ const Backtesting = () => {
                           </a>
                         )}
                       </div>
-                    ))
+                    ))}
+                    
+                    {trades.length > tradesLimit && (
+                      <div className="flex justify-center pt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setTradesLimit(prev => prev + 10)}
+                        >
+                          Cargar 10 operaciones más
+                        </Button>
+                      </div>
+                    )}
+                    </>
                   )}
                 </div>
               </CardContent>
