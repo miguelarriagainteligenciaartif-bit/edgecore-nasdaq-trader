@@ -146,7 +146,7 @@ const Backtesting = () => {
     
     const expectedValue = totalTrades > 0 ? (winRate / 100 * avgWin) - ((1 - winRate / 100) * avgLoss) : 0;
 
-    // Calcular rachas consecutivas
+    // Calcular rachas consecutivas - INCLUYE Break Even como continuación
     let currentTPStreak = 0;
     let bestTPStreak = 0;
     let currentSLStreak = 0;
@@ -169,7 +169,11 @@ const Backtesting = () => {
         if (currentSLStreak > worstSLStreak) {
           worstSLStreak = currentSLStreak;
         }
+      } else if (trade.result_type === "Break Even") {
+        // Break Even NO rompe la racha de TP, solo resetea SL
+        currentSLStreak = 0;
       } else {
+        // Cualquier otro tipo resetea ambas rachas
         currentTPStreak = 0;
         currentSLStreak = 0;
       }
