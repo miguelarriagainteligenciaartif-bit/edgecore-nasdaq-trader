@@ -77,7 +77,7 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
 
         <div className="space-y-2">
           <Label htmlFor="riskPerCycle">
-            {config.usePercentageRisk ? "Riesgo por Ciclo (%)" : "Riesgo por Ciclo ($)"}
+            {config.usePercentageRisk ? "Riesgo por Trade (%)" : "Riesgo por Ciclo ($)"}
           </Label>
           <Input
             id="riskPerCycle"
@@ -88,7 +88,7 @@ export const FlipConfigForm = ({ initialConfig, onConfigChange }: FlipConfigForm
             onChange={(e) => handleChange("riskPerCycle", parseFloat(e.target.value))}
           />
           {config.usePercentageRisk && (
-            <p className="text-xs text-muted-foreground">% del balance actual</p>
+            <p className="text-xs text-muted-foreground">% del balance actual por trade</p>
           )}
         </div>
 

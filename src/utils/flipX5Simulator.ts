@@ -63,8 +63,8 @@ export const simulateFlipX5 = (
     let pnlTraditional: number;
     
     if (usePercentageRisk) {
-      // Modo porcentaje: calcula el riesgo como % del balance actual
-      riskTraditional = (balanceTraditional * riskPerCycle) / 100 / cycleSize;
+      // Modo porcentaje: calcula el riesgo como % del balance actual POR TRADE
+      riskTraditional = (balanceTraditional * riskPerCycle) / 100;
       pnlTraditional = result === 'TP' ? riskTraditional * rrRatio : -riskTraditional;
     } else {
       // Modo dólares fijos: usa riskPerCycle como el monto fijo total por ciclo
@@ -78,13 +78,13 @@ export const simulateFlipX5 = (
     let riskLeveraged: number;
     
     if (usePercentageRisk) {
-      // Modo porcentaje: calcula el riesgo como % del balance actual
-      riskLeveraged = (balanceLeveraged * riskPerCycle) / 100 / cycleSize;
+      // Modo porcentaje: calcula el riesgo como % del balance actual POR TRADE
+      riskLeveraged = (balanceLeveraged * riskPerCycle) / 100;
       
       // Si es el segundo trade del ciclo Y el anterior fue TP, aplicar reinversión
       if (tradesInCycle === 1 && previousTradeResult === 'TP' && previousTradeProfit > 0) {
         const reinvestAmount = (previousTradeProfit * reinvestPercent) / 100;
-        riskLeveraged = (balanceLeveraged * riskPerCycle) / 100 / cycleSize + reinvestAmount;
+        riskLeveraged = (balanceLeveraged * riskPerCycle) / 100 + reinvestAmount;
       }
     } else {
       // Modo dólares fijos
