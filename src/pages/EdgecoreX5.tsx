@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { FlipConfigForm } from "@/components/FlipConfigForm";
 import { FlipTradeInput } from "@/components/FlipTradeInput";
@@ -14,15 +14,18 @@ import { toast } from "sonner";
 
 const EdgecoreX5 = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<any>(null);
-  const [config, setConfig] = useState<FlipConfig>({
-    accountSize: 1000,
-    cycleSize: 2,
-    riskPerCycle: 200,
-    rrRatio: 2.0,
-    reinvestPercent: 80,
-  });
-  const [trades, setTrades] = useState<TradeResult[]>([]);
+  const [config, setConfig] = useState<FlipConfig>(
+    location.state?.config || {
+      accountSize: 1000,
+      cycleSize: 2,
+      riskPerCycle: 200,
+      rrRatio: 2.0,
+      reinvestPercent: 80,
+    }
+  );
+  const [trades, setTrades] = useState<TradeResult[]>(location.state?.trades || []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
