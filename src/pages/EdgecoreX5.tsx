@@ -6,6 +6,7 @@ import { FlipTradeInput } from "@/components/FlipTradeInput";
 import { FlipResultsTable } from "@/components/FlipResultsTable";
 import { FlipSummaryCards } from "@/components/FlipSummaryCards";
 import { FlipChart } from "@/components/FlipChart";
+import { FlipExportButton } from "@/components/FlipExportButton";
 import { FlipConfig, TradeResult, simulateFlipX5 } from "@/utils/flipX5Simulator";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
@@ -91,11 +92,16 @@ const EdgecoreX5 = () => {
                 Gestión de Riesgo con Apalancado Personalizado
               </p>
             </div>
-            {trades.length > 0 && user && (
-              <Button onClick={handleSave} variant="default" size="sm">
-                <Save className="h-4 w-4 mr-2" />
-                Guardar
-              </Button>
+            {trades.length > 0 && (
+              <div className="flex gap-2">
+                {result && <FlipExportButton result={result} config={config} />}
+                {user && (
+                  <Button onClick={handleSave} variant="default" size="sm">
+                    <Save className="h-4 w-4 mr-2" />
+                    Guardar
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
