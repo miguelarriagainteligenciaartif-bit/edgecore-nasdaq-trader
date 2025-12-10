@@ -12,6 +12,7 @@ import EdgecoreX5 from "./pages/EdgecoreX5";
 import SavedSimulations from "./pages/SavedSimulations";
 import NotFound from "./pages/NotFound";
 
+// EdgeCore Trading App
 const queryClient = new QueryClient();
 
 function App() {
