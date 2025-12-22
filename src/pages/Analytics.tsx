@@ -100,17 +100,40 @@ export default function Analytics() {
     }
   });
 
-  // Calculate average trade duration in minutes
+  // Helper function to calculate duration in minutes
+  const calculateDurationMinutes = (entryTime: string, exitTime: string): number => {
+    const [entryHours, entryMinutes] = entryTime.split(":").map(Number);
+    const [exitHours, exitMinutes] = exitTime.split(":").map(Number);
+    const entryTotalMinutes = entryHours * 60 + entryMinutes;
+    const exitTotalMinutes = exitHours * 60 + exitMinutes;
+    return exitTotalMinutes - entryTotalMinutes;
+  };
+
+  // Calculate average trade duration in minutes (all trades)
   const tradesWithDuration = actualTrades.filter(t => t.entry_time && t.exit_time);
   const avgDurationMinutes = tradesWithDuration.length > 0
-    ? tradesWithDuration.reduce((sum, t) => {
-        const [entryHours, entryMinutes] = (t.entry_time || "00:00").split(":").map(Number);
-        const [exitHours, exitMinutes] = (t.exit_time || "00:00").split(":").map(Number);
-        const entryTotalMinutes = entryHours * 60 + entryMinutes;
-        const exitTotalMinutes = exitHours * 60 + exitMinutes;
-        return sum + (exitTotalMinutes - entryTotalMinutes);
-      }, 0) / tradesWithDuration.length
+    ? tradesWithDuration.reduce((sum, t) => sum + calculateDurationMinutes(t.entry_time!, t.exit_time!), 0) / tradesWithDuration.length
     : 0;
+
+  // Calculate average duration for TP trades
+  const tpTradesWithDuration = winningTrades.filter(t => t.entry_time && t.exit_time);
+  const avgDurationTP = tpTradesWithDuration.length > 0
+    ? tpTradesWithDuration.reduce((sum, t) => sum + calculateDurationMinutes(t.entry_time!, t.exit_time!), 0) / tpTradesWithDuration.length
+    : 0;
+
+  // Calculate average duration for SL trades
+  const slTradesWithDuration = losingTrades.filter(t => t.entry_time && t.exit_time);
+  const avgDurationSL = slTradesWithDuration.length > 0
+    ? slTradesWithDuration.reduce((sum, t) => sum + calculateDurationMinutes(t.entry_time!, t.exit_time!), 0) / slTradesWithDuration.length
+    : 0;
+
+  // Calculate win rate by trade type (Compra/Venta)
+  const buyTrades = actualTrades.filter(t => t.trade_type?.toLowerCase() === "compra" || t.trade_type?.toLowerCase() === "buy" || t.trade_type?.toLowerCase() === "long");
+  const sellTrades = actualTrades.filter(t => t.trade_type?.toLowerCase() === "venta" || t.trade_type?.toLowerCase() === "sell" || t.trade_type?.toLowerCase() === "short");
+  const buyWins = buyTrades.filter(t => t.result_type === "TP");
+  const sellWins = sellTrades.filter(t => t.result_type === "TP");
+  const buyWinRate = buyTrades.length > 0 ? (buyWins.length / buyTrades.length * 100) : 0;
+  const sellWinRate = sellTrades.length > 0 ? (sellWins.length / sellTrades.length * 100) : 0;
 
   // Calculate average drawdown for TP trades
   const tpTradesWithDrawdown = winningTrades.filter(t => t.drawdown !== null && t.drawdown !== undefined);
@@ -170,26 +193,6 @@ export default function Analytics() {
     };
   });
 
-  // Analysis by hour of execution
-  const hourStats = Array.from({ length: 6 }, (_, i) => i + 7).map(hour => {
-    const hourTrades = actualTrades.filter(t => {
-      if (!t.entry_time) return false;
-      const tradeHour = parseInt(t.entry_time.split(":")[0], 10);
-      return tradeHour === hour;
-    });
-    const hourPnL = hourTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
-    const hourWins = hourTrades.filter(t => t.result_type === "TP");
-    const hourWinRate = hourTrades.length > 0 ? (hourWins.length / hourTrades.length * 100) : 0;
-    
-    return {
-      name: `${hour}:00`,
-      hour,
-      operaciones: hourTrades.length,
-      pnl: hourPnL,
-      winRate: hourWinRate
-    };
-  }).filter(h => h.operaciones > 0);
-
   // Find best and worst performers
   const bestDay = dayStats.reduce((best, current) => 
     current.pnl > best.pnl ? current : best, dayStats[0]);
@@ -205,11 +208,6 @@ export default function Analytics() {
     current.pnl > best.pnl ? current : best, modelStats[0]);
   const worstModel = modelStats.filter(m => m.operaciones > 0).reduce((worst, current) => 
     current.pnl < worst.pnl ? current : worst, modelStats.find(m => m.operaciones > 0) || modelStats[0]);
-
-  const bestHour = hourStats.length > 0 ? hourStats.reduce((best, current) => 
-    current.pnl > best.pnl ? current : best, hourStats[0]) : null;
-  const worstHour = hourStats.length > 0 ? hourStats.reduce((worst, current) => 
-    current.pnl < worst.pnl ? current : worst, hourStats[0]) : null;
 
   // News analysis
   const tradesWithNews = actualTrades.filter(t => t.had_news);
@@ -506,35 +504,78 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        {/* Analysis by Hour of Execution */}
-        {hourStats.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Análisis por Hora de Ejecución
-              </CardTitle>
-              <CardDescription>
-                Mejor hora: {bestHour?.name || "N/A"} (${bestHour?.pnl.toFixed(2)}) | 
-                Peor hora: {worstHour?.name || "N/A"} (${worstHour?.pnl.toFixed(2)})
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={hourStats}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" />
-                  <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="left" dataKey="pnl" fill="hsl(var(--chart-1))" name="P&L ($)" />
-                  <Bar yAxisId="right" dataKey="winRate" fill="hsl(var(--chart-2))" name="Win Rate (%)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+        {/* Duration & Win Rate by Type Analysis */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Análisis de Duración y Tipo de Operación
+            </CardTitle>
+            <CardDescription>Tiempo promedio por resultado y win rate por dirección</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Duration Analysis */}
+              <div className="p-4 border rounded-lg">
+                <h4 className="font-semibold mb-3 text-sm">Duración Promedio por Resultado</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Todos los trades</span>
+                    <span className="font-bold">{avgDurationMinutes.toFixed(0)} min</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                      Cuando es TP
+                    </span>
+                    <span className="font-bold text-success">{avgDurationTP.toFixed(0)} min</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                      Cuando es SL
+                    </span>
+                    <span className="font-bold text-destructive">{avgDurationSL.toFixed(0)} min</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  TP: {tpTradesWithDuration.length} ops | SL: {slTradesWithDuration.length} ops
+                </p>
+              </div>
+              
+              {/* Win Rate by Direction */}
+              <div className="p-4 border rounded-lg">
+                <h4 className="font-semibold mb-3 text-sm">Win Rate por Dirección</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-green-500" />
+                      Compras (Long)
+                    </span>
+                    <div className="text-right">
+                      <span className={`font-bold ${buyWinRate >= 50 ? 'text-success' : 'text-destructive'}`}>
+                        {buyWinRate.toFixed(1)}%
+                      </span>
+                      <p className="text-xs text-muted-foreground">{buyWins.length}/{buyTrades.length} ops</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm flex items-center gap-1">
+                      <TrendingDown className="h-3 w-3 text-red-500" />
+                      Ventas (Short)
+                    </span>
+                    <div className="text-right">
+                      <span className={`font-bold ${sellWinRate >= 50 ? 'text-success' : 'text-destructive'}`}>
+                        {sellWinRate.toFixed(1)}%
+                      </span>
+                      <p className="text-xs text-muted-foreground">{sellWins.length}/{sellTrades.length} ops</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* News Analysis */}
         <Card>
