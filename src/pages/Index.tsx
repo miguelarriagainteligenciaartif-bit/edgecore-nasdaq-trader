@@ -7,6 +7,7 @@ import { TradeForm } from "@/components/TradeForm";
 import { ReportGenerator } from "@/components/ReportGenerator";
 import { AccountManager } from "@/components/AccountManager";
 import { TradeDetailsDialog } from "@/components/TradeDetailsDialog";
+import { ExcelImporter } from "@/components/ExcelImporter";
 import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -225,8 +226,9 @@ export default function Index() {
         {/* Account Manager */}
         <AccountManager />
 
-        {/* Report Generator */}
-        <div className="flex justify-end">
+        {/* Report Generator and Excel Importer */}
+        <div className="flex justify-end gap-2">
+          <ExcelImporter onSuccess={loadTrades} />
           <ReportGenerator trades={trades} />
         </div>
 
