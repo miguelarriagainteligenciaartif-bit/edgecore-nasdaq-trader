@@ -82,6 +82,14 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     return 1;
   };
 
+  const readAsArrayBuffer = (file: File) =>
+    new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo"));
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.readAsArrayBuffer(file);
+    });
+
   const processFile = async (file: File) => {
     setLoading(true);
     setErrors([]);
@@ -89,7 +97,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     setParsedTrades([]);
 
     try {
-      const data = await file.arrayBuffer();
+      const data = await readAsArrayBuffer(file);
       const workbook = XLSX.read(data, { type: "array", cellDates: true });
 
       // Read ALL sheets and merge rows (some Excels split data across tabs or ranges)
