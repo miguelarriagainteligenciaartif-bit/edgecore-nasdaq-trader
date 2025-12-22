@@ -75,6 +75,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const [selectedSheet, setSelectedSheet] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
+  const [dateFormat, setDateFormat] = useState<"auto" | "dmy" | "mdy">("auto");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedSheetResult = useMemo(() => {
@@ -93,52 +94,61 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     return 1;
   };
 
-  const parseDate = (dateValue: any): string => {
-    if (!dateValue) return new Date().toISOString().split("T")[0];
-    
-    // If it's already a string in YYYY-MM-DD format
+  const formatYmd = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const parseDateFromParts = (year: number, month: number, day: number) => {
+    // Use local date constructor to avoid timezone-shift issues.
+    const d = new Date(year, month - 1, day, 12, 0, 0, 0);
+    return formatYmd(d);
+  };
+
+  const parseDate = (dateValue: any, fmt: "dmy" | "mdy"): string => {
+    if (!dateValue) return formatYmd(new Date());
+
+    // Already YYYY-MM-DD
     if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
       return dateValue;
     }
-    
-    // If it's a number (Excel serial date)
+
+    // Excel serial date
     if (typeof dateValue === "number") {
       const excelEpoch = new Date(1899, 11, 30);
-      const date = new Date(excelEpoch.getTime() + dateValue * 86400000);
-      return date.toISOString().split("T")[0];
+      const d = new Date(excelEpoch.getTime() + dateValue * 86400000);
+      return formatYmd(d);
     }
-    
-    // Try parsing various string formats
+
+    // d/m/yyyy or m/d/yyyy
     if (typeof dateValue === "string") {
-      // Handle d/m/yyyy or dd/mm/yyyy format
-      const parts = dateValue.split("/");
+      const raw = dateValue.trim();
+      const parts = raw.split("/");
       if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
+        const a = parseInt(parts[0], 10);
+        const b = parseInt(parts[1], 10);
         let year = parseInt(parts[2], 10);
-        
-        // Handle 2-digit years
-        if (year < 100) {
-          year += year > 50 ? 1900 : 2000;
+
+        if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(year)) {
+          if (year < 100) year += year > 50 ? 1900 : 2000;
+
+          const day = fmt === "dmy" ? a : b;
+          const month = fmt === "dmy" ? b : a;
+
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return parseDateFromParts(year, month, day);
+          }
         }
-        
-        // If day > 12, it's definitely d/m/y format
-        // If month > 12, swap (it was m/d/y)
-        if (month > 12 && day <= 12) {
-          return `${year}-${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}`;
-        }
-        
-        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       }
     }
-    
-    // Fallback: try Date constructor
-    const date = new Date(dateValue);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
-    }
-    
-    return new Date().toISOString().split("T")[0];
+
+    // Fallback
+    const d = new Date(dateValue);
+    if (!isNaN(d.getTime())) return formatYmd(d);
+
+    return formatYmd(new Date());
   };
 
   const parseTime = (timeValue: any): string => {
@@ -387,10 +397,35 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         let skippedEmpty = 0;
         let skippedOld = 0;
 
+        const detectFormatFromRows = (): "dmy" | "mdy" => {
+          // Vote-based heuristic:
+          // - If first number > 12 => it's day (d/m/y)
+          // - If second number > 12 => it's day (m/d/y)
+          let dmyVotes = 0;
+          let mdyVotes = 0;
+
+          for (const r of extractedRows) {
+            const raw = String(r.FECHA ?? "").trim();
+            if (!raw.includes("/")) continue;
+            const parts = raw.split("/");
+            if (parts.length !== 3) continue;
+            const a = parseInt(parts[0], 10);
+            const b = parseInt(parts[1], 10);
+            if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+            if (a > 12 && a <= 31) dmyVotes += 2;
+            if (b > 12 && b <= 31) mdyVotes += 2;
+          }
+
+          // Default to DMY for Spanish datasets unless evidence suggests MDY.
+          return mdyVotes > dmyVotes ? "mdy" : "dmy";
+        };
+
+        const effectiveDateFormat: "dmy" | "mdy" =
+          dateFormat === "auto" ? detectFormatFromRows() : dateFormat;
+
         extractedRows.forEach((row, index) => {
           try {
-            // Consider a row "usable" if it has a date. (Si el Excel viene de Google Sheets con fórmulas sin valor cacheado,
-            // exportar como CSV suele resolverlo porque incluye los valores calculados.)
+            // Consider a row "usable" if it has a date.
             const hasDate = String(row.FECHA ?? "").trim() !== "";
 
             if (!hasDate) {
@@ -398,7 +433,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
               return;
             }
 
-            const dateStr = parseDate(row.FECHA);
+            const dateStr = parseDate(row.FECHA, effectiveDateFormat);
             const year = parseInt(dateStr.split("-")[0], 10);
             if (year < 2020) {
               skippedOld++;
@@ -478,7 +513,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       }
     } catch (err) {
       console.error("Error reading file:", err);
-      setErrors(["Error al leer el archivo. Asegúrate de que es un archivo Excel válido."]);
+      setErrors(["Error al leer el archivo. Asegúrate de que es un archivo CSV válido."]);
     } finally {
       setLoading(false);
     }
@@ -565,17 +600,17 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Upload className="h-4 w-4" />
-          Importar Excel
+          Importar CSV
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Importar Operaciones desde Excel
+            Importar Operaciones desde CSV
           </DialogTitle>
           <DialogDescription>
-            Sube un archivo Excel (.xlsx) con tus operaciones. Se mapearán automáticamente las columnas.
+            Sube un archivo CSV (exportado desde Google Sheets) con tus operaciones. Se mapearán automáticamente las columnas.
           </DialogDescription>
         </DialogHeader>
 
@@ -604,6 +639,24 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Date format */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Formato de fecha</p>
+              <p className="text-xs text-muted-foreground">Si los meses salen mal, cámbialo aquí y vuelve a importar.</p>
+            </div>
+            <Select value={dateFormat} onValueChange={(v) => setDateFormat(v as "auto" | "dmy" | "mdy")}>
+              <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectValue placeholder="Formato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto-detectar</SelectItem>
+                <SelectItem value="dmy">Día/Mes/Año</SelectItem>
+                <SelectItem value="mdy">Mes/Día/Año</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Loading State */}
           {loading && (
