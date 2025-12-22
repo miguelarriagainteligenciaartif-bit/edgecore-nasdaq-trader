@@ -8,6 +8,7 @@ import { ReportGenerator } from "@/components/ReportGenerator";
 import { AccountManager } from "@/components/AccountManager";
 import { TradeDetailsDialog } from "@/components/TradeDetailsDialog";
 import { ExcelImporter } from "@/components/ExcelImporter";
+import { MonthlyResults } from "@/components/MonthlyResults";
 import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, Layers } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -302,6 +303,9 @@ export default function Index() {
 
         {/* Trade Form */}
         <TradeForm onSuccess={loadTrades} />
+
+        {/* Monthly Results */}
+        <MonthlyResults trades={allTrades} />
 
         {/* Recent Trades Table */}
         <Card>
