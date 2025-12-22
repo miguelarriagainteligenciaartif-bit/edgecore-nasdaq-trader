@@ -25,6 +25,7 @@ interface ExcelRow {
   RESULTADO?: string;
   "P&L"?: string | number;
   "LINK m1 (EJECUCIÓN)"?: string;
+  MES?: string;
   // Add alternative column names
   "HORA SALIDA"?: string;
   LINK?: string;
@@ -366,6 +367,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
           DRAWDOWN: headerMap["DRAWDOWN"],
           RESULTADO: headerMap["RESULTADO"],
           PNL: headerMap["P&L"],
+          MES: headerMap["MES"],
           LINK:
             headerMap["LINK M1 (EJECUCION)"] ??
             headerMap["LINK M1 (EJECUCION)"] ??
@@ -389,6 +391,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
             RESULTADO: col.RESULTADO !== undefined ? getCellText(ws, r, col.RESULTADO) : "",
             "P&L": col.PNL !== undefined ? getCellText(ws, r, col.PNL) : "",
             "LINK m1 (EJECUCIÓN)": col.LINK !== undefined ? getCellText(ws, r, col.LINK) : "",
+            MES: col.MES !== undefined ? getCellText(ws, r, col.MES) : "",
           });
         }
 
@@ -398,9 +401,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         let skippedOld = 0;
 
         const detectFormatFromRows = (): "dmy" | "mdy" => {
-          // Vote-based heuristic:
-          // - If first number > 12 => it's day (d/m/y)
-          // - If second number > 12 => it's day (m/d/y)
+          // Strong signal: MES column (if present) lets us disambiguate 7/8/2025.
           let dmyVotes = 0;
           let mdyVotes = 0;
 
@@ -411,7 +412,17 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
             if (parts.length !== 3) continue;
             const a = parseInt(parts[0], 10);
             const b = parseInt(parts[1], 10);
+            const mes = parseInt(String((r as any).MES ?? ""), 10);
+
             if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+
+            // If MES exists and matches one side, vote strongly.
+            if (Number.isFinite(mes) && mes >= 1 && mes <= 12) {
+              if (mes === b) dmyVotes += 5; // d/m/y -> month is second
+              if (mes === a) mdyVotes += 5; // m/d/y -> month is first
+            }
+
+            // Secondary heuristic when MES is absent:
             if (a > 12 && a <= 31) dmyVotes += 2;
             if (b > 12 && b <= 31) mdyVotes += 2;
           }
@@ -500,8 +511,15 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         return;
       }
 
+      const detectedFmtLabel =
+        dateFormat === "auto"
+          ? "Auto"
+          : dateFormat === "dmy"
+          ? "Día/Mes/Año"
+          : "Mes/Día/Año";
+
       toast.info(
-        `Hoja: ${best.sheetName} · ${best.extractedRows.length} filas leídas · ${best.parsed.length} operaciones válidas · ${best.skippedOld} antiguas · ${best.skippedEmpty} vacías · ${best.parseErrors.length} con error`
+        `Hoja: ${best.sheetName} · ${best.extractedRows.length} filas leídas · ${best.parsed.length} operaciones válidas · ${best.skippedOld} antiguas · ${best.skippedEmpty} vacías · ${best.parseErrors.length} con error · formato: ${detectedFmtLabel}`
       );
 
       setRawData(best.extractedRows);
