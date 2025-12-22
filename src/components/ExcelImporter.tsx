@@ -230,9 +230,6 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array", cellDates: true });
 
-      // Get the first sheet (or whichever sheet actually contains the trade table)
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
 
       // Some Excel files have data beyond the stored worksheet range (!ref),
       // which can cause the last rows to be missed. Expand the range by scanning
@@ -247,7 +244,6 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
         for (const key of Object.keys(ws)) {
           if (key[0] === "!") continue;
-          // Cell addresses like A1, AB12...
           if (!/^[A-Z]+\d+$/.test(key)) continue;
           const cell = XLSX.utils.decode_cell(key);
           if (cell.r > maxR) maxR = cell.r;
@@ -256,8 +252,6 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
         ws["!ref"] = XLSX.utils.encode_range({ s: originalRange.s, e: { r: maxR, c: maxC } });
       };
-
-      expandWorksheetRange(worksheet);
 
       const normalizeHeader = (v: any) =>
         String(v ?? "")
@@ -270,167 +264,201 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         const addr = XLSX.utils.encode_cell({ r, c });
         const cell = ws[addr] as XLSX.CellObject | undefined;
         if (!cell) return "";
-        // Prefer formatted text if present
         const val = (cell as any).w ?? (cell as any).v;
         return String(val ?? "").trim();
       };
 
-      const rangeRef = worksheet["!ref"];
-      if (!rangeRef) {
-        setErrors(["No se pudo leer el rango de la hoja (archivo Excel inválido)"]);
-        setLoading(false);
-        return;
-      }
+      const processWorksheet = (ws: XLSX.WorkSheet, name: string) => {
+        expandWorksheetRange(ws);
 
-      const range = XLSX.utils.decode_range(rangeRef);
-
-      // Find header row by scanning first ~50 rows
-      let headerRow = -1;
-      let headerMap: Record<string, number> = {};
-
-      for (let r = range.s.r; r <= Math.min(range.e.r, range.s.r + 50); r++) {
-        const candidate: Record<string, number> = {};
-        for (let c = range.s.c; c <= range.e.c; c++) {
-          const h = normalizeHeader(getCellText(worksheet, r, c));
-          if (!h) continue;
-          candidate[h] = c;
+        const rangeRef = ws["!ref"];
+        if (!rangeRef) {
+          return {
+            ok: false as const,
+            sheetName: name,
+            extractedRows: [] as ExcelRow[],
+            parsed: [] as ParsedTrade[],
+            parseErrors: ["No se pudo leer el rango de la hoja"],
+            skippedEmpty: 0,
+            skippedOld: 0,
+          };
         }
 
-        // Must at least contain these columns
-        if (candidate["FECHA"] !== undefined && candidate["DIA"] !== undefined && candidate["HORA ENTRADA"] !== undefined) {
-          headerRow = r;
-          headerMap = candidate;
-          break;
+        const range = XLSX.utils.decode_range(rangeRef);
+
+        // Find header row by scanning first ~80 rows
+        let headerRow = -1;
+        let headerMap: Record<string, number> = {};
+
+        for (let r = range.s.r; r <= Math.min(range.e.r, range.s.r + 80); r++) {
+          const candidate: Record<string, number> = {};
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const h = normalizeHeader(getCellText(ws, r, c));
+            if (!h) continue;
+            candidate[h] = c;
+          }
+
+          if (
+            candidate["FECHA"] !== undefined &&
+            candidate["DIA"] !== undefined &&
+            candidate["HORA ENTRADA"] !== undefined
+          ) {
+            headerRow = r;
+            headerMap = candidate;
+            break;
+          }
         }
-      }
 
-      if (headerRow === -1) {
-        setErrors(["No encontré la fila de encabezados (FECHA / DÍA / HORA ENTRADA). Revisa el formato del Excel."]);
-        setLoading(false);
-        return;
-      }
+        if (headerRow === -1) {
+          return {
+            ok: false as const,
+            sheetName: name,
+            extractedRows: [] as ExcelRow[],
+            parsed: [] as ParsedTrade[],
+            parseErrors: ["No encontré encabezados (FECHA/DÍA/HORA ENTRADA)"],
+            skippedEmpty: 0,
+            skippedOld: 0,
+          };
+        }
 
-      const col = {
-        FECHA: headerMap["FECHA"],
-        DIA: headerMap["DIA"],
-        SEMANA: headerMap["SEMANA"],
-        HORA_ENTRADA: headerMap["HORA ENTRADA"],
-        HORA_SALIDA_12: headerMap["HORA SALIDA EN 1:2"],
-        HORA_SALIDA: headerMap["HORA SALIDA"],
-        NOTICIA: headerMap["NOTICIA"],
-        MODELO: headerMap["MODELO"],
-        TIPO: headerMap["TIPO"],
-        RR_MAXIMO: headerMap["RR MAXIMO"] ?? headerMap["RR MAXIMO"],
-        DRAWDOWN: headerMap["DRAWDOWN"],
-        RESULTADO: headerMap["RESULTADO"],
-        PNL: headerMap["P&L"] ?? headerMap["P&L"],
-        LINK: headerMap["LINK M1 (EJECUCION)"] ?? headerMap["LINK M1 (EJECUCION)"] ?? headerMap["LINK"],
-      };
-
-      // Build rows manually to avoid missing tail rows due to sheet_to_json quirks
-      const extractedRows: ExcelRow[] = [];
-      for (let r = headerRow + 1; r <= range.e.r; r++) {
-        const row: ExcelRow = {
-          FECHA: col.FECHA !== undefined ? getCellText(worksheet, r, col.FECHA) : "",
-          DÍA: col.DIA !== undefined ? getCellText(worksheet, r, col.DIA) : "",
-          SEMANA: col.SEMANA !== undefined ? getCellText(worksheet, r, col.SEMANA) : "",
-          "HORA ENTRADA": col.HORA_ENTRADA !== undefined ? getCellText(worksheet, r, col.HORA_ENTRADA) : "",
-          "HORA SALIDA EN 1:2": col.HORA_SALIDA_12 !== undefined ? getCellText(worksheet, r, col.HORA_SALIDA_12) : "",
-          "HORA SALIDA": col.HORA_SALIDA !== undefined ? getCellText(worksheet, r, col.HORA_SALIDA) : "",
-          NOTICIA: col.NOTICIA !== undefined ? getCellText(worksheet, r, col.NOTICIA) : "",
-          MODELO: col.MODELO !== undefined ? getCellText(worksheet, r, col.MODELO) : "",
-          TIPO: col.TIPO !== undefined ? getCellText(worksheet, r, col.TIPO) : "",
-          "RR MÁXIMO": col.RR_MAXIMO !== undefined ? getCellText(worksheet, r, col.RR_MAXIMO) : "",
-          DRAWDOWN: col.DRAWDOWN !== undefined ? getCellText(worksheet, r, col.DRAWDOWN) : "",
-          RESULTADO: col.RESULTADO !== undefined ? getCellText(worksheet, r, col.RESULTADO) : "",
-          "P&L": col.PNL !== undefined ? getCellText(worksheet, r, col.PNL) : "",
-          "LINK m1 (EJECUCIÓN)": col.LINK !== undefined ? getCellText(worksheet, r, col.LINK) : "",
+        const col = {
+          FECHA: headerMap["FECHA"],
+          DIA: headerMap["DIA"],
+          SEMANA: headerMap["SEMANA"],
+          HORA_ENTRADA: headerMap["HORA ENTRADA"],
+          HORA_SALIDA_12: headerMap["HORA SALIDA EN 1:2"],
+          HORA_SALIDA: headerMap["HORA SALIDA"],
+          NOTICIA: headerMap["NOTICIA"],
+          MODELO: headerMap["MODELO"],
+          TIPO: headerMap["TIPO"],
+          RR_MAXIMO: headerMap["RR MAXIMO"],
+          DRAWDOWN: headerMap["DRAWDOWN"],
+          RESULTADO: headerMap["RESULTADO"],
+          PNL: headerMap["P&L"],
+          LINK:
+            headerMap["LINK M1 (EJECUCION)"] ??
+            headerMap["LINK M1 (EJECUCION)"] ??
+            headerMap["LINK"],
         };
 
-        extractedRows.push(row);
-      }
+        const extractedRows: ExcelRow[] = [];
+        for (let r = headerRow + 1; r <= range.e.r; r++) {
+          extractedRows.push({
+            FECHA: col.FECHA !== undefined ? getCellText(ws, r, col.FECHA) : "",
+            DÍA: col.DIA !== undefined ? getCellText(ws, r, col.DIA) : "",
+            SEMANA: col.SEMANA !== undefined ? getCellText(ws, r, col.SEMANA) : "",
+            "HORA ENTRADA": col.HORA_ENTRADA !== undefined ? getCellText(ws, r, col.HORA_ENTRADA) : "",
+            "HORA SALIDA EN 1:2": col.HORA_SALIDA_12 !== undefined ? getCellText(ws, r, col.HORA_SALIDA_12) : "",
+            "HORA SALIDA": col.HORA_SALIDA !== undefined ? getCellText(ws, r, col.HORA_SALIDA) : "",
+            NOTICIA: col.NOTICIA !== undefined ? getCellText(ws, r, col.NOTICIA) : "",
+            MODELO: col.MODELO !== undefined ? getCellText(ws, r, col.MODELO) : "",
+            TIPO: col.TIPO !== undefined ? getCellText(ws, r, col.TIPO) : "",
+            "RR MÁXIMO": col.RR_MAXIMO !== undefined ? getCellText(ws, r, col.RR_MAXIMO) : "",
+            DRAWDOWN: col.DRAWDOWN !== undefined ? getCellText(ws, r, col.DRAWDOWN) : "",
+            RESULTADO: col.RESULTADO !== undefined ? getCellText(ws, r, col.RESULTADO) : "",
+            "P&L": col.PNL !== undefined ? getCellText(ws, r, col.PNL) : "",
+            "LINK m1 (EJECUCIÓN)": col.LINK !== undefined ? getCellText(ws, r, col.LINK) : "",
+          });
+        }
 
-      if (extractedRows.length === 0) {
-        setErrors(["El archivo está vacío o no tiene el formato esperado"]);
+        const parsed: ParsedTrade[] = [];
+        const parseErrors: string[] = [];
+        let skippedEmpty = 0;
+        let skippedOld = 0;
+
+        extractedRows.forEach((row, index) => {
+          try {
+            const hasUsefulData = [
+              row.FECHA,
+              row["HORA ENTRADA"],
+              row.RESULTADO,
+              row["P&L"],
+              row.MODELO,
+              row.TIPO,
+            ].some((v) => String(v ?? "").trim() !== "");
+
+            if (!hasUsefulData) {
+              skippedEmpty++;
+              return;
+            }
+
+            const dateStr = parseDate(row.FECHA);
+            const year = parseInt(dateStr.split("-")[0], 10);
+            if (year < 2020) {
+              skippedOld++;
+              return;
+            }
+
+            const pnl = parsePnL(row["P&L"]);
+
+            parsed.push({
+              date: dateStr,
+              day_of_week: mapDayOfWeek(row.DÍA),
+              week_of_month: parseWeekOfMonth(row.SEMANA),
+              entry_time: parseTime(row["HORA ENTRADA"]),
+              exit_time:
+                row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"]
+                  ? parseTime(row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"])
+                  : null,
+              trade_type: mapTradeType(row.TIPO),
+              entry_model: mapEntryModel(row.MODELO),
+              result_type: mapResultType(row.RESULTADO, pnl),
+              result_dollars: pnl,
+              had_news: row.NOTICIA ? !row.NOTICIA.toUpperCase().includes("NO NEWS") : false,
+              news_description:
+                row.NOTICIA && !row.NOTICIA.toUpperCase().includes("NO NEWS") ? row.NOTICIA : null,
+              max_rr: parseNumber(row["RR MÁXIMO"]),
+              drawdown: parseNumber(row.DRAWDOWN),
+              image_link: row["LINK m1 (EJECUCIÓN)"] || row.LINK || null,
+              no_trade_day: false,
+              risk_percentage: 1,
+            });
+          } catch {
+            const excelRowNumber = headerRow + 1 + (index + 1);
+            parseErrors.push(`Fila ${excelRowNumber}: Error al procesar los datos`);
+          }
+        });
+
+        return {
+          ok: true as const,
+          sheetName: name,
+          extractedRows,
+          parsed,
+          parseErrors,
+          skippedEmpty,
+          skippedOld,
+        };
+      };
+
+      // Auto-detect the correct sheet (some workbooks put DATA after other tabs)
+      const results = workbook.SheetNames.map((name) => processWorksheet(workbook.Sheets[name], name));
+      const best = results
+        .filter((r) => r.ok)
+        .sort((a, b) => b.parsed.length - a.parsed.length)[0];
+
+      if (!best || best.parsed.length === 0) {
+        const reasons = results
+          .map((r) => `${r.sheetName}: ${r.parseErrors[0] ?? "sin datos"}`)
+          .slice(0, 5)
+          .join(" | ");
+        setErrors([
+          "No se pudieron detectar operaciones válidas en ninguna hoja.",
+          reasons,
+        ]);
         setLoading(false);
         return;
       }
 
-      setRawData(extractedRows);
-
-      // Parse and map the data
-      const parsed: ParsedTrade[] = [];
-      const parseErrors: string[] = [];
-      let skippedEmpty = 0;
-      let skippedOld = 0;
-
-      extractedRows.forEach((row, index) => {
-        try {
-          // Skip completely empty rows
-          const hasUsefulData = [
-            row.FECHA,
-            row["HORA ENTRADA"],
-            row.RESULTADO,
-            row["P&L"],
-            row.MODELO,
-            row.TIPO,
-          ].some((v) => String(v ?? "").trim() !== "");
-
-          if (!hasUsefulData) {
-            skippedEmpty++;
-            return;
-          }
-
-          // Skip rows that look like test data (year 2000)
-          const dateStr = parseDate(row.FECHA);
-          const year = parseInt(dateStr.split("-")[0], 10);
-          if (year < 2020) {
-            skippedOld++;
-            return;
-          }
-
-          const pnl = parsePnL(row["P&L"]);
-          
-          const trade: ParsedTrade = {
-            date: dateStr,
-            day_of_week: mapDayOfWeek(row.DÍA),
-            week_of_month: parseWeekOfMonth(row.SEMANA),
-            entry_time: parseTime(row["HORA ENTRADA"]),
-            exit_time: row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"] 
-              ? parseTime(row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"]) 
-              : null,
-            trade_type: mapTradeType(row.TIPO),
-            entry_model: mapEntryModel(row.MODELO),
-            result_type: mapResultType(row.RESULTADO, pnl),
-            result_dollars: pnl,
-            had_news: row.NOTICIA ? !row.NOTICIA.toUpperCase().includes("NO NEWS") : false,
-            news_description: row.NOTICIA && !row.NOTICIA.toUpperCase().includes("NO NEWS") 
-              ? row.NOTICIA 
-              : null,
-            max_rr: parseNumber(row["RR MÁXIMO"]),
-            drawdown: parseNumber(row.DRAWDOWN),
-            image_link: row["LINK m1 (EJECUCIÓN)"] || row.LINK || null,
-            no_trade_day: false,
-            risk_percentage: 1,
-          };
-
-          parsed.push(trade);
-        } catch (err) {
-          // +1 because Excel rows are 1-indexed
-          const excelRowNumber = headerRow + 1 + (index + 1);
-          parseErrors.push(`Fila ${excelRowNumber}: Error al procesar los datos`);
-        }
-      });
-
       toast.info(
-        `Excel: ${extractedRows.length} filas leídas · ${parsed.length} operaciones válidas · ${skippedOld} antiguas omitidas · ${skippedEmpty} vacías · ${parseErrors.length} con error`
+        `Hoja: ${best.sheetName} · ${best.extractedRows.length} filas leídas · ${best.parsed.length} operaciones válidas · ${best.skippedOld} antiguas · ${best.skippedEmpty} vacías · ${best.parseErrors.length} con error`
       );
 
-      setParsedTrades(parsed);
-      setErrors(parseErrors);
+      setRawData(best.extractedRows);
+      setParsedTrades(best.parsed);
+      setErrors(best.parseErrors);
 
-      if (parsed.length === 0) {
-        setErrors(prev => [...prev, "No se pudieron parsear operaciones válidas del archivo"]);
+      if (best.parsed.length === 0) {
+        setErrors((prev) => [...prev, "No se pudieron parsear operaciones válidas del archivo"]);
       }
     } catch (err) {
       console.error("Error reading file:", err);
