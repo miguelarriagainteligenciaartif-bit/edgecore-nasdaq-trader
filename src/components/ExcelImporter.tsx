@@ -246,8 +246,10 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     setParsedTrades([]);
 
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array", cellDates: true });
+      const isCsv = file.name.toLowerCase().endsWith(".csv");
+      const workbook = isCsv
+        ? XLSX.read(await file.text(), { type: "string" })
+        : XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
 
 
       // Some Excel files have data beyond the stored worksheet range (!ref),
@@ -387,7 +389,8 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
         extractedRows.forEach((row, index) => {
           try {
-            // Consider a row "usable" if it has a date. Many templates leave other columns blank.
+            // Consider a row "usable" if it has a date. (Si el Excel viene de Google Sheets con fórmulas sin valor cacheado,
+            // exportar como CSV suele resolverlo porque incluye los valores calculados.)
             const hasDate = String(row.FECHA ?? "").trim() !== "";
 
             if (!hasDate) {
@@ -587,13 +590,13 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                     <p className="mb-2 text-sm text-muted-foreground">
                       <span className="font-semibold">Click para seleccionar</span> o arrastra un archivo
                     </p>
-                    <p className="text-xs text-muted-foreground">.xlsx (Excel)</p>
+                    <p className="text-xs text-muted-foreground">.xlsx / .csv</p>
                   </div>
                   <input
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleFileSelect}
                     disabled={loading || importing}
                   />
