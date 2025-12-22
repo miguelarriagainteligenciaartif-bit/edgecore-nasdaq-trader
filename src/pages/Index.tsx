@@ -48,6 +48,7 @@ export default function Index() {
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [allTrades, setAllTrades] = useState<Trade[]>([]); // ALL trades for metrics
   const [tradesLimit, setTradesLimit] = useState(50);
   const [hasMoreTrades, setHasMoreTrades] = useState(false);
 
@@ -55,11 +56,13 @@ export default function Index() {
     checkUser();
   }, []);
 
+  // When tradesLimit changes, just update the displayed trades from allTrades
   useEffect(() => {
-    if (user) {
-      loadTrades();
+    if (allTrades.length > 0) {
+      setTrades(allTrades.slice(0, tradesLimit));
+      setHasMoreTrades(allTrades.length > tradesLimit);
     }
-  }, [tradesLimit]);
+  }, [tradesLimit, allTrades]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -73,16 +76,18 @@ export default function Index() {
 
   const loadTrades = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Load ALL trades for metrics (no limit)
+    const { data: allData } = await supabase
       .from("trades")
       .select("*")
       .order("date", { ascending: false })
-      .order("entry_time", { ascending: false })
-      .limit(tradesLimit + 1);
+      .order("entry_time", { ascending: false });
 
-    if (!error && data) {
-      setHasMoreTrades(data.length > tradesLimit);
-      setTrades(data.slice(0, tradesLimit));
+    if (allData) {
+      setAllTrades(allData);
+      setHasMoreTrades(allData.length > tradesLimit);
+      setTrades(allData.slice(0, tradesLimit));
     }
 
     const { data: accountsData } = await supabase
@@ -97,11 +102,17 @@ export default function Index() {
     setLoading(false);
   };
 
-  const filteredTrades = selectedAccount === "all" 
+  // Use ALL trades for metrics, not limited trades
+  const filteredTradesForMetrics = selectedAccount === "all" 
+    ? allTrades 
+    : allTrades.filter(t => t.account_id === selectedAccount);
+  
+  const actualTrades = filteredTradesForMetrics.filter(t => !t.no_trade_day);
+
+  // For table display, use limited trades
+  const filteredTradesForTable = selectedAccount === "all" 
     ? trades 
     : trades.filter(t => t.account_id === selectedAccount);
-  
-  const actualTrades = filteredTrades.filter(t => !t.no_trade_day);
 
   // Calcular rachas consecutivas
   let currentTPStreak = 0;

@@ -590,13 +590,13 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                     <p className="mb-2 text-sm text-muted-foreground">
                       <span className="font-semibold">Click para seleccionar</span> o arrastra un archivo
                     </p>
-                    <p className="text-xs text-muted-foreground">.xlsx / .csv</p>
+                    <p className="text-xs text-muted-foreground">.csv (exportado desde Google Sheets)</p>
                   </div>
                   <input
                     ref={fileInputRef}
                     type="file"
                     className="hidden"
-                    accept=".xlsx,.xls,.csv"
+                    accept=".csv"
                     onChange={handleFileSelect}
                     disabled={loading || importing}
                   />
