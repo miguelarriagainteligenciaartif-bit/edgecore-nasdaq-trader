@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { StatsCard } from "@/components/StatsCard";
 import { ReportGenerator } from "@/components/ReportGenerator";
-import { DollarSign, TrendingUp, Target, Calendar, BarChart3, Clock } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Target, Calendar, BarChart3, Clock, Flame, Award } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, AreaChart, Area } from "recharts";
 
 interface Trade {
   id: string;
@@ -79,6 +79,27 @@ export default function Analytics() {
     : 0;
   const expectedValue = avgWin * (winRate / 100) - avgLoss * (1 - winRate / 100);
 
+  // Calculate streaks (best TP streak and worst SL streak)
+  let currentTPStreak = 0;
+  let bestTPStreak = 0;
+  let currentSLStreak = 0;
+  let worstSLStreak = 0;
+
+  actualTrades.forEach(trade => {
+    if (trade.result_type === "TP") {
+      currentTPStreak++;
+      currentSLStreak = 0;
+      if (currentTPStreak > bestTPStreak) bestTPStreak = currentTPStreak;
+    } else if (trade.result_type === "SL") {
+      currentSLStreak++;
+      currentTPStreak = 0;
+      if (currentSLStreak > worstSLStreak) worstSLStreak = currentSLStreak;
+    } else {
+      currentTPStreak = 0;
+      currentSLStreak = 0;
+    }
+  });
+
   // Calculate average trade duration in minutes
   const tradesWithDuration = actualTrades.filter(t => t.entry_time && t.exit_time);
   const avgDurationMinutes = tradesWithDuration.length > 0
@@ -105,7 +126,7 @@ export default function Analytics() {
 
   // Analysis by entry model
   const modelStats = ["M1", "M3", "Continuación"].map(model => {
-    const modelTrades = actualTrades.filter(t => t.entry_model === model);
+    const modelTrades = actualTrades.filter(t => t.entry_model === model || t.entry_model?.toUpperCase() === model.toUpperCase());
     const modelWins = modelTrades.filter(t => t.result_type === "TP");
     const modelPnL = modelTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
     const modelWinRate = modelTrades.length > 0 ? (modelWins.length / modelTrades.length * 100) : 0;
@@ -120,7 +141,7 @@ export default function Analytics() {
 
   // Analysis by day of week
   const dayStats = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"].map(day => {
-    const dayTrades = actualTrades.filter(t => t.day_of_week === day);
+    const dayTrades = actualTrades.filter(t => t.day_of_week?.toLowerCase() === day.toLowerCase());
     const dayPnL = dayTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
     const dayWins = dayTrades.filter(t => t.result_type === "TP");
     const dayWinRate = dayTrades.length > 0 ? (dayWins.length / dayTrades.length * 100) : 0;
@@ -142,25 +163,75 @@ export default function Analytics() {
     
     return {
       name: `Semana ${week}`,
+      week,
       operaciones: weekTrades.length,
       pnl: weekPnL,
       winRate: weekWinRate
     };
   });
 
-  // Find best performers
+  // Analysis by hour of execution
+  const hourStats = Array.from({ length: 6 }, (_, i) => i + 7).map(hour => {
+    const hourTrades = actualTrades.filter(t => {
+      if (!t.entry_time) return false;
+      const tradeHour = parseInt(t.entry_time.split(":")[0], 10);
+      return tradeHour === hour;
+    });
+    const hourPnL = hourTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
+    const hourWins = hourTrades.filter(t => t.result_type === "TP");
+    const hourWinRate = hourTrades.length > 0 ? (hourWins.length / hourTrades.length * 100) : 0;
+    
+    return {
+      name: `${hour}:00`,
+      hour,
+      operaciones: hourTrades.length,
+      pnl: hourPnL,
+      winRate: hourWinRate
+    };
+  }).filter(h => h.operaciones > 0);
+
+  // Find best and worst performers
   const bestDay = dayStats.reduce((best, current) => 
     current.pnl > best.pnl ? current : best, dayStats[0]);
+  const worstDay = dayStats.filter(d => d.operaciones > 0).reduce((worst, current) => 
+    current.pnl < worst.pnl ? current : worst, dayStats.find(d => d.operaciones > 0) || dayStats[0]);
+  
   const bestWeek = weekStats.reduce((best, current) => 
     current.pnl > best.pnl ? current : best, weekStats[0]);
+  const worstWeek = weekStats.filter(w => w.operaciones > 0).reduce((worst, current) => 
+    current.pnl < worst.pnl ? current : worst, weekStats.find(w => w.operaciones > 0) || weekStats[0]);
+  
   const bestModel = modelStats.reduce((best, current) => 
     current.pnl > best.pnl ? current : best, modelStats[0]);
+  const worstModel = modelStats.filter(m => m.operaciones > 0).reduce((worst, current) => 
+    current.pnl < worst.pnl ? current : worst, modelStats.find(m => m.operaciones > 0) || modelStats[0]);
+
+  const bestHour = hourStats.length > 0 ? hourStats.reduce((best, current) => 
+    current.pnl > best.pnl ? current : best, hourStats[0]) : null;
+  const worstHour = hourStats.length > 0 ? hourStats.reduce((worst, current) => 
+    current.pnl < worst.pnl ? current : worst, hourStats[0]) : null;
 
   // News analysis
   const tradesWithNews = actualTrades.filter(t => t.had_news);
+  const tradesWithoutNews = actualTrades.filter(t => !t.had_news);
   const newsWins = tradesWithNews.filter(t => t.result_type === "TP");
+  const noNewsWins = tradesWithoutNews.filter(t => t.result_type === "TP");
   const newsPnL = tradesWithNews.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
+  const noNewsPnL = tradesWithoutNews.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
   const newsWinRate = tradesWithNews.length > 0 ? (newsWins.length / tradesWithNews.length * 100) : 0;
+  const noNewsWinRate = tradesWithoutNews.length > 0 ? (noNewsWins.length / tradesWithoutNews.length * 100) : 0;
+
+  // Equity curve data
+  let cumulative = 0;
+  const equityCurveData = actualTrades.map((trade, index) => {
+    cumulative += (trade.result_dollars || 0);
+    return {
+      trade: index + 1,
+      equity: cumulative,
+      date: trade.date,
+      result: trade.result_type
+    };
+  });
 
   if (loading) {
     return (
@@ -188,112 +259,177 @@ export default function Analytics() {
           <ReportGenerator trades={trades} />
         </div>
 
-        {/* Main Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {/* Main Metrics Row 1 */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <StatsCard
             title="Win Rate"
             value={`${winRate.toFixed(1)}%`}
-            subtitle={`${winningTrades.length} ganadoras de ${actualTrades.length}`}
+            subtitle={`${winningTrades.length} TP / ${losingTrades.length} SL`}
             icon={Target}
-            trend="up"
+            trend={winRate >= 50 ? "up" : "down"}
           />
           <StatsCard
             title="Expected Value"
             value={`$${expectedValue.toFixed(2)}`}
-            subtitle="Expectativa por operación"
+            subtitle="Expectativa por op"
             icon={TrendingUp}
             trend={expectedValue >= 0 ? "up" : "down"}
           />
           <StatsCard
-            title="Mejor Día"
-            value={bestDay?.name || "N/A"}
-            subtitle={`$${bestDay?.pnl.toFixed(2) || 0} de P&L`}
-            icon={Calendar}
+            title="Mejor Racha TP"
+            value={bestTPStreak}
+            subtitle="Consecutivos ganados"
+            icon={Award}
             trend="up"
           />
           <StatsCard
-            title="Mejor Semana"
-            value={bestWeek?.name || "N/A"}
-            subtitle={`$${bestWeek?.pnl.toFixed(2) || 0} de P&L`}
-            icon={Clock}
-            trend="up"
+            title="Peor Racha SL"
+            value={worstSLStreak}
+            subtitle="Consecutivos perdidos"
+            icon={Flame}
+            trend="down"
           />
           <StatsCard
-            title="RR Máximo Promedio"
+            title="RR Máximo Prom."
             value={avgMaxRR > 0 ? avgMaxRR.toFixed(2) : "N/A"}
-            subtitle={`${tradesWithMaxRR.length} ops con RR máx`}
+            subtitle={`${tradesWithMaxRR.length} ops`}
             icon={TrendingUp}
             trend="up"
           />
+          <StatsCard
+            title="Duración Prom."
+            value={`${avgDurationMinutes.toFixed(0)} min`}
+            subtitle={`${tradesWithDuration.length} ops`}
+            icon={Clock}
+            trend="neutral"
+          />
         </div>
 
-        {/* Additional Metrics */}
-        <div className="grid gap-4 md:grid-cols-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mejor Modelo</CardTitle>
-              <CardDescription>Modelo más rentable</CardDescription>
+        {/* Best/Worst Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="border-l-4 border-l-green-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Mejor Día</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{bestModel?.name || "N/A"}</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                ${bestModel?.pnl.toFixed(2) || 0} | WR: {bestModel?.winRate.toFixed(1) || 0}%
-              </p>
+              <div className="text-2xl font-bold text-success">{bestDay?.name || "N/A"}</div>
+              <p className="text-xs text-muted-foreground">${bestDay?.pnl.toFixed(2)} | WR: {bestDay?.winRate.toFixed(0)}%</p>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Promedio de Ganancia</CardTitle>
-              <CardDescription>Por operación ganadora</CardDescription>
+          <Card className="border-l-4 border-l-red-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Peor Día</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-success">${avgWin.toFixed(2)}</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {winningTrades.length} operaciones ganadoras
-              </p>
+              <div className="text-2xl font-bold text-destructive">{worstDay?.name || "N/A"}</div>
+              <p className="text-xs text-muted-foreground">${worstDay?.pnl.toFixed(2)} | WR: {worstDay?.winRate.toFixed(0)}%</p>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Promedio de Pérdida</CardTitle>
-              <CardDescription>Por operación perdedora</CardDescription>
+          <Card className="border-l-4 border-l-green-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Mejor Semana</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-destructive">${avgLoss.toFixed(2)}</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {losingTrades.length} operaciones perdedoras
-              </p>
+              <div className="text-2xl font-bold text-success">{bestWeek?.name || "N/A"}</div>
+              <p className="text-xs text-muted-foreground">${bestWeek?.pnl.toFixed(2)} | WR: {bestWeek?.winRate.toFixed(0)}%</p>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Duración Promedio</CardTitle>
-              <CardDescription>Tiempo en operación</CardDescription>
+          <Card className="border-l-4 border-l-red-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Peor Semana</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{avgDurationMinutes.toFixed(0)} min</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {tradesWithDuration.length} operaciones con duración
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>DrawDown Promedio TP</CardTitle>
-              <CardDescription>En operaciones ganadoras</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{(avgDrawdownTP * 100).toFixed(0)}%</div>
-              <p className="text-sm text-muted-foreground mt-2">
-                {tpTradesWithDrawdown.length} TPs con DrawDown registrado
-              </p>
+              <div className="text-2xl font-bold text-destructive">{worstWeek?.name || "N/A"}</div>
+              <p className="text-xs text-muted-foreground">${worstWeek?.pnl.toFixed(2)} | WR: {worstWeek?.winRate.toFixed(0)}%</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Additional Metrics Row */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Mejor Modelo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-success">{bestModel?.name || "N/A"}</div>
+              <p className="text-xs text-muted-foreground">${bestModel?.pnl.toFixed(2)} | WR: {bestModel?.winRate.toFixed(0)}%</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Peor Modelo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">{worstModel?.name || "N/A"}</div>
+              <p className="text-xs text-muted-foreground">${worstModel?.pnl.toFixed(2)} | WR: {worstModel?.winRate.toFixed(0)}%</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Promedio Ganancia</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-success">${avgWin.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">{winningTrades.length} operaciones</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Promedio Pérdida</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">${avgLoss.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">{losingTrades.length} operaciones</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">DrawDown Prom. TP</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(avgDrawdownTP * 100).toFixed(0)}%</div>
+              <p className="text-xs text-muted-foreground">{tpTradesWithDrawdown.length} TPs</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Equity Curve */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Equity Curve (Curva de Capital)
+            </CardTitle>
+            <CardDescription>Evolución del P&L acumulado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={equityCurveData}>
+                <defs>
+                  <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="trade" label={{ value: 'Operación #', position: 'bottom' }} />
+                <YAxis tickFormatter={(value) => `$${value}`} />
+                <Tooltip 
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
+                  labelFormatter={(label) => `Operación #${label}`}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="equity" 
+                  stroke="hsl(var(--chart-1))" 
+                  fillOpacity={1} 
+                  fill="url(#colorEquity)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         {/* Analysis by Entry Model */}
         <Card>
@@ -370,6 +506,36 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
+        {/* Analysis by Hour of Execution */}
+        {hourStats.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Análisis por Hora de Ejecución
+              </CardTitle>
+              <CardDescription>
+                Mejor hora: {bestHour?.name || "N/A"} (${bestHour?.pnl.toFixed(2)}) | 
+                Peor hora: {worstHour?.name || "N/A"} (${worstHour?.pnl.toFixed(2)})
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={hourStats}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" />
+                  <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="pnl" fill="hsl(var(--chart-1))" name="P&L ($)" />
+                  <Bar yAxisId="right" dataKey="winRate" fill="hsl(var(--chart-2))" name="Win Rate (%)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
         {/* News Analysis */}
         <Card>
           <CardHeader>
@@ -377,21 +543,43 @@ export default function Analytics() {
               <DollarSign className="h-5 w-5" />
               Análisis de Operaciones con Noticias
             </CardTitle>
-            <CardDescription>Impacto de las noticias en el rendimiento</CardDescription>
+            <CardDescription>Comparación: Con noticias vs Sin noticias</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Operaciones con Noticias</p>
-                <p className="text-2xl font-bold">{tradesWithNews.length}</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 border rounded-lg">
+                <h4 className="font-semibold mb-3 text-sm">Con Noticias</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground text-sm">Operaciones</span>
+                    <span className="font-bold">{tradesWithNews.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground text-sm">P&L</span>
+                    <span className={`font-bold ${newsPnL >= 0 ? 'text-success' : 'text-destructive'}`}>${newsPnL.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground text-sm">Win Rate</span>
+                    <span className="font-bold">{newsWinRate.toFixed(1)}%</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">P&L con Noticias</p>
-                <p className="text-2xl font-bold">${newsPnL.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Win Rate con Noticias</p>
-                <p className="text-2xl font-bold">{newsWinRate.toFixed(1)}%</p>
+              <div className="p-4 border rounded-lg">
+                <h4 className="font-semibold mb-3 text-sm">Sin Noticias</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground text-sm">Operaciones</span>
+                    <span className="font-bold">{tradesWithoutNews.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground text-sm">P&L</span>
+                    <span className={`font-bold ${noNewsPnL >= 0 ? 'text-success' : 'text-destructive'}`}>${noNewsPnL.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground text-sm">Win Rate</span>
+                    <span className="font-bold">{noNewsWinRate.toFixed(1)}%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
