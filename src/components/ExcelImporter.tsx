@@ -229,15 +229,41 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array", cellDates: true });
-      
-      // Get the first sheet
+
+      // Get the first sheet (or whichever sheet actually contains the trade table)
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      
+
+      // Some Excel files have data beyond the stored worksheet range (!ref),
+      // which can cause the last rows to be missed. Expand the range by scanning
+      // all present cells.
+      const expandWorksheetRange = (ws: XLSX.WorkSheet) => {
+        const originalRef = ws["!ref"];
+        if (!originalRef) return;
+        const originalRange = XLSX.utils.decode_range(originalRef);
+
+        let maxR = originalRange.e.r;
+        let maxC = originalRange.e.c;
+
+        for (const key of Object.keys(ws)) {
+          if (key[0] === "!") continue;
+          // Cell addresses like A1, AB12...
+          if (!/^[A-Z]+\d+$/.test(key)) continue;
+          const cell = XLSX.utils.decode_cell(key);
+          if (cell.r > maxR) maxR = cell.r;
+          if (cell.c > maxC) maxC = cell.c;
+        }
+
+        ws["!ref"] = XLSX.utils.encode_range({ s: originalRange.s, e: { r: maxR, c: maxC } });
+      };
+
+      expandWorksheetRange(worksheet);
+
       // Convert to JSON
-      const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, { 
+      const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, {
         raw: false,
-        defval: ""
+        defval: "",
+        blankrows: true,
       });
 
       if (jsonData.length === 0) {
@@ -254,6 +280,18 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
       jsonData.forEach((row, index) => {
         try {
+          // Skip completely empty rows (common when enabling blankrows)
+          const hasUsefulData = [
+            row.FECHA,
+            row["HORA ENTRADA"],
+            row.RESULTADO,
+            row["P&L"],
+            row.MODELO,
+            row.TIPO,
+          ].some((v) => String(v ?? "").trim() !== "");
+
+          if (!hasUsefulData) return;
+
           // Skip rows that look like test data (year 2000)
           const dateStr = parseDate(row.FECHA);
           const year = parseInt(dateStr.split("-")[0], 10);
