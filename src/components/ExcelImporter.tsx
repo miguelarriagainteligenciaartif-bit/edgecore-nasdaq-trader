@@ -74,8 +74,8 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     return 1;
   };
 
-  const parseDate = (dateValue: any): string => {
-    if (!dateValue) return new Date().toISOString().split("T")[0];
+  const parseDate = (dateValue: any): string | null => {
+    if (!dateValue) return null;
     
     // If it's already a string in YYYY-MM-DD format
     if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
@@ -91,25 +91,48 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     
     // Try parsing various string formats
     if (typeof dateValue === "string") {
-      // Handle d/m/yyyy or dd/mm/yyyy format
-      const parts = dateValue.split("/");
-      if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
-        let year = parseInt(parts[2], 10);
+      // Handle d/m/yyyy or dd/mm/yyyy format (European/Spanish format)
+      const slashParts = dateValue.split("/");
+      if (slashParts.length === 3) {
+        let day = parseInt(slashParts[0], 10);
+        let month = parseInt(slashParts[1], 10);
+        let year = parseInt(slashParts[2], 10);
         
         // Handle 2-digit years
         if (year < 100) {
           year += year > 50 ? 1900 : 2000;
         }
         
-        // If day > 12, it's definitely d/m/y format
-        // If month > 12, swap (it was m/d/y)
-        if (month > 12 && day <= 12) {
-          return `${year}-${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}`;
+        // Spanish format is always d/m/y, so day is first, month is second
+        // But if we detect American format (month > 12 is impossible), swap
+        if (day > 12 && month <= 12) {
+          // This is definitely d/m/y - day can be 13-31, month can't
+          // Keep as is
+        } else if (month > 12 && day <= 12) {
+          // This looks like m/d/y was used - swap
+          [day, month] = [month, day];
         }
+        // If both are <= 12, assume Spanish d/m/y format
         
-        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        }
+      }
+      
+      // Handle d-m-yyyy format
+      const dashParts = dateValue.split("-");
+      if (dashParts.length === 3) {
+        const first = parseInt(dashParts[0], 10);
+        const second = parseInt(dashParts[1], 10);
+        const third = parseInt(dashParts[2], 10);
+        
+        // If first part is 4 digits, it's YYYY-MM-DD
+        if (dashParts[0].length === 4) {
+          return `${first}-${String(second).padStart(2, "0")}-${String(third).padStart(2, "0")}`;
+        }
+        // Otherwise it's D-M-YYYY
+        let year = third < 100 ? (third > 50 ? 1900 + third : 2000 + third) : third;
+        return `${year}-${String(second).padStart(2, "0")}-${String(first).padStart(2, "0")}`;
       }
     }
     
@@ -119,7 +142,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       return date.toISOString().split("T")[0];
     }
     
-    return new Date().toISOString().split("T")[0];
+    return null;
   };
 
   const parseTime = (timeValue: any): string => {
@@ -251,14 +274,23 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       // Parse and map the data
       const parsed: ParsedTrade[] = [];
       const parseErrors: string[] = [];
+      let skippedTestData = 0;
+      let skippedNoDate = 0;
 
       jsonData.forEach((row, index) => {
         try {
-          // Skip rows that look like test data (year 2000)
+          // Skip rows without a date
           const dateStr = parseDate(row.FECHA);
+          if (!dateStr) {
+            skippedNoDate++;
+            return;
+          }
+          
           const year = parseInt(dateStr.split("-")[0], 10);
+          // Skip rows that look like test data (year before 2020)
           if (year < 2020) {
-            return; // Skip old test data
+            skippedTestData++;
+            return;
           }
 
           const pnl = parsePnL(row["P&L"]);
@@ -290,6 +322,25 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         } catch (err) {
           parseErrors.push(`Fila ${index + 2}: Error al procesar los datos`);
         }
+      });
+
+      // Add info about skipped rows
+      if (skippedTestData > 0) {
+        parseErrors.unshift(`Se omitieron ${skippedTestData} filas de datos de prueba (año < 2020)`);
+      }
+      if (skippedNoDate > 0) {
+        parseErrors.unshift(`Se omitieron ${skippedNoDate} filas sin fecha válida`);
+      }
+      
+      // Log for debugging
+      console.log("Excel Import Debug:", {
+        totalRows: jsonData.length,
+        parsedTrades: parsed.length,
+        skippedTestData,
+        skippedNoDate,
+        errors: parseErrors.length,
+        sampleRow: jsonData[0],
+        sampleParsedDate: jsonData[0] ? parseDate(jsonData[0].FECHA) : null
       });
 
       setParsedTrades(parsed);
