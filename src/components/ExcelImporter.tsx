@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 interface ExcelRow {
   FECHA?: string;
@@ -58,7 +57,6 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [rawData, setRawData] = useState<ExcelRow[]>([]);
   const [parsedTrades, setParsedTrades] = useState<ParsedTrade[]>([]);
   const [progress, setProgress] = useState(0);
@@ -68,156 +66,16 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const parseWeekOfMonth = (semana: string | undefined): number => {
     if (!semana) return 1;
     const cleaned = semana.toUpperCase().replace(/[^0-9A-Z]/g, "");
-    if (cleaned.includes("1ST") || cleaned === "1") return 1;
-    if (cleaned.includes("2ND") || cleaned === "2") return 2;
-    if (cleaned.includes("3RD") || cleaned === "3") return 3;
-    if (cleaned.includes("4TH") || cleaned === "4") return 4;
-    if (cleaned.includes("5TH") || cleaned === "5") return 5;
-    // Fallback: if it contains the digit
-    if (cleaned.includes("1")) return 1;
-    if (cleaned.includes("2")) return 2;
-    if (cleaned.includes("3")) return 3;
-    if (cleaned.includes("4")) return 4;
-    if (cleaned.includes("5")) return 5;
+    if (cleaned.includes("1") || cleaned.includes("1ST")) return 1;
+    if (cleaned.includes("2") || cleaned.includes("2ND")) return 2;
+    if (cleaned.includes("3") || cleaned.includes("3RD")) return 3;
+    if (cleaned.includes("4") || cleaned.includes("4TH")) return 4;
+    if (cleaned.includes("5") || cleaned.includes("5TH")) return 5;
     return 1;
   };
 
-  const readAsArrayBuffer = (file: File) =>
-    new Promise<ArrayBuffer>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo"));
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.readAsArrayBuffer(file);
-    });
-
-  const processFile = async (file: File) => {
-    setLoading(true);
-    setErrors([]);
-    setRawData([]);
-    setParsedTrades([]);
-
-    try {
-      const data = await readAsArrayBuffer(file);
-      const workbook = XLSX.read(data, { type: "array", cellDates: true });
-
-      // Read ALL sheets and merge rows (some Excels split data across tabs or ranges)
-      const allRows: ExcelRow[] = [];
-      const sheetCounts: Record<string, number> = {};
-
-      workbook.SheetNames.forEach((sheetName) => {
-        const worksheet = workbook.Sheets[sheetName];
-        if (!worksheet) return;
-
-        const rows: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, {
-          raw: false,
-          defval: "",
-        });
-
-        // Only keep sheets that actually look like the trades table
-        const looksLikeTrades = rows.some((r) => typeof r.FECHA !== "undefined" || (r as any)["FECHA"]);
-        if (!looksLikeTrades) return;
-
-        sheetCounts[sheetName] = rows.length;
-        allRows.push(...rows);
-      });
-
-      // De-duplicate identical rows (common when sheets overlap)
-      const seen = new Set<string>();
-      const jsonData: ExcelRow[] = [];
-      for (const row of allRows) {
-        const key = JSON.stringify(row);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        jsonData.push(row);
-      }
-
-      if (jsonData.length === 0) {
-        setErrors(["El archivo está vacío o no tiene el formato esperado (no encontré columnas como FECHA)"]);
-        return;
-      }
-
-      console.log("Excel sheets detected:", {
-        sheetNames: workbook.SheetNames,
-        sheetCounts,
-        mergedRows: jsonData.length,
-      });
-
-      setRawData(jsonData);
-
-      // Parse and map the data
-      const parsed: ParsedTrade[] = [];
-      const parseErrors: string[] = [];
-      let skippedTestData = 0;
-      let skippedNoDate = 0;
-
-      jsonData.forEach((row, index) => {
-        try {
-          const dateStr = parseDate(row.FECHA);
-          if (!dateStr) {
-            skippedNoDate++;
-            return;
-          }
-
-          const year = parseInt(dateStr.split("-")[0], 10);
-          if (year < 2020) {
-            skippedTestData++;
-            return;
-          }
-
-          const pnl = parsePnL(row["P&L"]);
-
-          const trade: ParsedTrade = {
-            date: dateStr,
-            day_of_week: mapDayOfWeek(row.DÍA),
-            week_of_month: parseWeekOfMonth(row.SEMANA),
-            entry_time: parseTime(row["HORA ENTRADA"]),
-            exit_time: row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"] ? parseTime(row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"]) : null,
-            trade_type: mapTradeType(row.TIPO),
-            entry_model: mapEntryModel(row.MODELO),
-            result_type: mapResultType(row.RESULTADO, pnl),
-            result_dollars: pnl,
-            had_news: row.NOTICIA ? !row.NOTICIA.toUpperCase().includes("NO NEWS") : false,
-            news_description: row.NOTICIA && !row.NOTICIA.toUpperCase().includes("NO NEWS") ? row.NOTICIA : null,
-            max_rr: parseNumber(row["RR MÁXIMO"]),
-            drawdown: parseNumber(row.DRAWDOWN),
-            image_link: row["LINK m1 (EJECUCIÓN)"] || row.LINK || null,
-            no_trade_day: false,
-            risk_percentage: 1,
-          };
-
-          parsed.push(trade);
-        } catch (err) {
-          parseErrors.push(`Fila ${index + 2}: Error al procesar los datos`);
-        }
-      });
-
-      if (skippedTestData > 0) parseErrors.unshift(`Se omitieron ${skippedTestData} filas de datos de prueba (año < 2020)`);
-      if (skippedNoDate > 0) parseErrors.unshift(`Se omitieron ${skippedNoDate} filas sin fecha válida`);
-
-      console.log("Excel Import Debug:", {
-        totalRows: jsonData.length,
-        parsedTrades: parsed.length,
-        skippedTestData,
-        skippedNoDate,
-        errors: parseErrors.length,
-      });
-
-      setParsedTrades(parsed);
-      setErrors(parseErrors);
-
-      if (parsed.length === 0) {
-        setErrors((prev) => [...prev, "No se pudieron parsear operaciones válidas del archivo"]);
-      }
-    } catch (err) {
-      console.error("Error reading file:", err);
-      setErrors(["Error al leer el archivo. Asegúrate de que es un archivo Excel válido."]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const parseDate = (dateValue: any): string | null => {
-    if (!dateValue) return null;
+  const parseDate = (dateValue: any): string => {
+    if (!dateValue) return new Date().toISOString().split("T")[0];
     
     // If it's already a string in YYYY-MM-DD format
     if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
@@ -233,48 +91,25 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     
     // Try parsing various string formats
     if (typeof dateValue === "string") {
-      // Handle d/m/yyyy or dd/mm/yyyy format (European/Spanish format)
-      const slashParts = dateValue.split("/");
-      if (slashParts.length === 3) {
-        let day = parseInt(slashParts[0], 10);
-        let month = parseInt(slashParts[1], 10);
-        let year = parseInt(slashParts[2], 10);
+      // Handle d/m/yyyy or dd/mm/yyyy format
+      const parts = dateValue.split("/");
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
         
         // Handle 2-digit years
         if (year < 100) {
           year += year > 50 ? 1900 : 2000;
         }
         
-        // Spanish format is always d/m/y, so day is first, month is second
-        // But if we detect American format (month > 12 is impossible), swap
-        if (day > 12 && month <= 12) {
-          // This is definitely d/m/y - day can be 13-31, month can't
-          // Keep as is
-        } else if (month > 12 && day <= 12) {
-          // This looks like m/d/y was used - swap
-          [day, month] = [month, day];
+        // If day > 12, it's definitely d/m/y format
+        // If month > 12, swap (it was m/d/y)
+        if (month > 12 && day <= 12) {
+          return `${year}-${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}`;
         }
-        // If both are <= 12, assume Spanish d/m/y format
         
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-          return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        }
-      }
-      
-      // Handle d-m-yyyy format
-      const dashParts = dateValue.split("-");
-      if (dashParts.length === 3) {
-        const first = parseInt(dashParts[0], 10);
-        const second = parseInt(dashParts[1], 10);
-        const third = parseInt(dashParts[2], 10);
-        
-        // If first part is 4 digits, it's YYYY-MM-DD
-        if (dashParts[0].length === 4) {
-          return `${first}-${String(second).padStart(2, "0")}-${String(third).padStart(2, "0")}`;
-        }
-        // Otherwise it's D-M-YYYY
-        let year = third < 100 ? (third > 50 ? 1900 + third : 2000 + third) : third;
-        return `${year}-${String(second).padStart(2, "0")}-${String(first).padStart(2, "0")}`;
+        return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       }
     }
     
@@ -284,7 +119,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       return date.toISOString().split("T")[0];
     }
     
-    return null;
+    return new Date().toISOString().split("T")[0];
   };
 
   const parseTime = (timeValue: any): string => {
@@ -385,45 +220,90 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    await processFile(file);
-  };
 
-  const handleDrop = async (event: React.DragEvent<HTMLLabelElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragging(false);
+    setLoading(true);
+    setErrors([]);
+    setRawData([]);
+    setParsedTrades([]);
 
-    if (loading || importing) return;
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array", cellDates: true });
+      
+      // Get the first sheet
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Convert to JSON
+      const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, { 
+        raw: false,
+        defval: ""
+      });
 
-    const file = event.dataTransfer.files?.[0];
-    if (!file) return;
+      if (jsonData.length === 0) {
+        setErrors(["El archivo está vacío o no tiene el formato esperado"]);
+        setLoading(false);
+        return;
+      }
 
-    // Basic guard: only accept Excel
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-      toast.error("Sube un archivo Excel (.xlsx o .xls)");
-      return;
+      setRawData(jsonData);
+
+      // Parse and map the data
+      const parsed: ParsedTrade[] = [];
+      const parseErrors: string[] = [];
+
+      jsonData.forEach((row, index) => {
+        try {
+          // Skip rows that look like test data (year 2000)
+          const dateStr = parseDate(row.FECHA);
+          const year = parseInt(dateStr.split("-")[0], 10);
+          if (year < 2020) {
+            return; // Skip old test data
+          }
+
+          const pnl = parsePnL(row["P&L"]);
+          
+          const trade: ParsedTrade = {
+            date: dateStr,
+            day_of_week: mapDayOfWeek(row.DÍA),
+            week_of_month: parseWeekOfMonth(row.SEMANA),
+            entry_time: parseTime(row["HORA ENTRADA"]),
+            exit_time: row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"] 
+              ? parseTime(row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"]) 
+              : null,
+            trade_type: mapTradeType(row.TIPO),
+            entry_model: mapEntryModel(row.MODELO),
+            result_type: mapResultType(row.RESULTADO, pnl),
+            result_dollars: pnl,
+            had_news: row.NOTICIA ? !row.NOTICIA.toUpperCase().includes("NO NEWS") : false,
+            news_description: row.NOTICIA && !row.NOTICIA.toUpperCase().includes("NO NEWS") 
+              ? row.NOTICIA 
+              : null,
+            max_rr: parseNumber(row["RR MÁXIMO"]),
+            drawdown: parseNumber(row.DRAWDOWN),
+            image_link: row["LINK m1 (EJECUCIÓN)"] || row.LINK || null,
+            no_trade_day: false,
+            risk_percentage: 1,
+          };
+
+          parsed.push(trade);
+        } catch (err) {
+          parseErrors.push(`Fila ${index + 2}: Error al procesar los datos`);
+        }
+      });
+
+      setParsedTrades(parsed);
+      setErrors(parseErrors);
+
+      if (parsed.length === 0) {
+        setErrors(prev => [...prev, "No se pudieron parsear operaciones válidas del archivo"]);
+      }
+    } catch (err) {
+      console.error("Error reading file:", err);
+      setErrors(["Error al leer el archivo. Asegúrate de que es un archivo Excel válido."]);
+    } finally {
+      setLoading(false);
     }
-
-    // Keep input value in sync (optional)
-    if (fileInputRef.current) {
-      // Can't set FileList programmatically in a standard way; just process directly.
-      fileInputRef.current.value = "";
-    }
-
-    await processFile(file);
-  };
-
-  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!isDragging) setIsDragging(true);
-  };
-
-  const handleDragLeave = (event: React.DragEvent<HTMLLabelElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragging(false);
   };
 
   const handleImport = async () => {
@@ -526,15 +406,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-center w-full">
-                <label
-                  className={cn(
-                    "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
-                    isDragging ? "bg-muted/60 border-primary" : "hover:bg-muted/50"
-                  )}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                >
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                     <p className="mb-2 text-sm text-muted-foreground">
