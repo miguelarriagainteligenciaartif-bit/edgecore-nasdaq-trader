@@ -368,16 +368,10 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
         extractedRows.forEach((row, index) => {
           try {
-            const hasUsefulData = [
-              row.FECHA,
-              row["HORA ENTRADA"],
-              row.RESULTADO,
-              row["P&L"],
-              row.MODELO,
-              row.TIPO,
-            ].some((v) => String(v ?? "").trim() !== "");
+            // Consider a row "usable" if it has a date. Many templates leave other columns blank.
+            const hasDate = String(row.FECHA ?? "").trim() !== "";
 
-            if (!hasUsefulData) {
+            if (!hasDate) {
               skippedEmpty++;
               return;
             }
