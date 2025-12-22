@@ -259,28 +259,114 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
       expandWorksheetRange(worksheet);
 
-      // Convert to JSON
-      const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, {
-        raw: false,
-        defval: "",
-        blankrows: true,
-      });
+      const normalizeHeader = (v: any) =>
+        String(v ?? "")
+          .trim()
+          .toUpperCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
 
-      if (jsonData.length === 0) {
+      const getCellText = (ws: XLSX.WorkSheet, r: number, c: number) => {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const cell = ws[addr] as XLSX.CellObject | undefined;
+        if (!cell) return "";
+        // Prefer formatted text if present
+        const val = (cell as any).w ?? (cell as any).v;
+        return String(val ?? "").trim();
+      };
+
+      const rangeRef = worksheet["!ref"];
+      if (!rangeRef) {
+        setErrors(["No se pudo leer el rango de la hoja (archivo Excel inválido)"]);
+        setLoading(false);
+        return;
+      }
+
+      const range = XLSX.utils.decode_range(rangeRef);
+
+      // Find header row by scanning first ~50 rows
+      let headerRow = -1;
+      let headerMap: Record<string, number> = {};
+
+      for (let r = range.s.r; r <= Math.min(range.e.r, range.s.r + 50); r++) {
+        const candidate: Record<string, number> = {};
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const h = normalizeHeader(getCellText(worksheet, r, c));
+          if (!h) continue;
+          candidate[h] = c;
+        }
+
+        // Must at least contain these columns
+        if (candidate["FECHA"] !== undefined && candidate["DIA"] !== undefined && candidate["HORA ENTRADA"] !== undefined) {
+          headerRow = r;
+          headerMap = candidate;
+          break;
+        }
+      }
+
+      if (headerRow === -1) {
+        setErrors(["No encontré la fila de encabezados (FECHA / DÍA / HORA ENTRADA). Revisa el formato del Excel."]);
+        setLoading(false);
+        return;
+      }
+
+      const col = {
+        FECHA: headerMap["FECHA"],
+        DIA: headerMap["DIA"],
+        SEMANA: headerMap["SEMANA"],
+        HORA_ENTRADA: headerMap["HORA ENTRADA"],
+        HORA_SALIDA_12: headerMap["HORA SALIDA EN 1:2"],
+        HORA_SALIDA: headerMap["HORA SALIDA"],
+        NOTICIA: headerMap["NOTICIA"],
+        MODELO: headerMap["MODELO"],
+        TIPO: headerMap["TIPO"],
+        RR_MAXIMO: headerMap["RR MAXIMO"] ?? headerMap["RR MAXIMO"],
+        DRAWDOWN: headerMap["DRAWDOWN"],
+        RESULTADO: headerMap["RESULTADO"],
+        PNL: headerMap["P&L"] ?? headerMap["P&L"],
+        LINK: headerMap["LINK M1 (EJECUCION)"] ?? headerMap["LINK M1 (EJECUCION)"] ?? headerMap["LINK"],
+      };
+
+      // Build rows manually to avoid missing tail rows due to sheet_to_json quirks
+      const extractedRows: ExcelRow[] = [];
+      for (let r = headerRow + 1; r <= range.e.r; r++) {
+        const row: ExcelRow = {
+          FECHA: col.FECHA !== undefined ? getCellText(worksheet, r, col.FECHA) : "",
+          DÍA: col.DIA !== undefined ? getCellText(worksheet, r, col.DIA) : "",
+          SEMANA: col.SEMANA !== undefined ? getCellText(worksheet, r, col.SEMANA) : "",
+          "HORA ENTRADA": col.HORA_ENTRADA !== undefined ? getCellText(worksheet, r, col.HORA_ENTRADA) : "",
+          "HORA SALIDA EN 1:2": col.HORA_SALIDA_12 !== undefined ? getCellText(worksheet, r, col.HORA_SALIDA_12) : "",
+          "HORA SALIDA": col.HORA_SALIDA !== undefined ? getCellText(worksheet, r, col.HORA_SALIDA) : "",
+          NOTICIA: col.NOTICIA !== undefined ? getCellText(worksheet, r, col.NOTICIA) : "",
+          MODELO: col.MODELO !== undefined ? getCellText(worksheet, r, col.MODELO) : "",
+          TIPO: col.TIPO !== undefined ? getCellText(worksheet, r, col.TIPO) : "",
+          "RR MÁXIMO": col.RR_MAXIMO !== undefined ? getCellText(worksheet, r, col.RR_MAXIMO) : "",
+          DRAWDOWN: col.DRAWDOWN !== undefined ? getCellText(worksheet, r, col.DRAWDOWN) : "",
+          RESULTADO: col.RESULTADO !== undefined ? getCellText(worksheet, r, col.RESULTADO) : "",
+          "P&L": col.PNL !== undefined ? getCellText(worksheet, r, col.PNL) : "",
+          "LINK m1 (EJECUCIÓN)": col.LINK !== undefined ? getCellText(worksheet, r, col.LINK) : "",
+        };
+
+        extractedRows.push(row);
+      }
+
+      if (extractedRows.length === 0) {
         setErrors(["El archivo está vacío o no tiene el formato esperado"]);
         setLoading(false);
         return;
       }
 
-      setRawData(jsonData);
+      setRawData(extractedRows);
 
       // Parse and map the data
       const parsed: ParsedTrade[] = [];
       const parseErrors: string[] = [];
+      let skippedEmpty = 0;
+      let skippedOld = 0;
 
-      jsonData.forEach((row, index) => {
+      extractedRows.forEach((row, index) => {
         try {
-          // Skip completely empty rows (common when enabling blankrows)
+          // Skip completely empty rows
           const hasUsefulData = [
             row.FECHA,
             row["HORA ENTRADA"],
@@ -290,13 +376,17 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
             row.TIPO,
           ].some((v) => String(v ?? "").trim() !== "");
 
-          if (!hasUsefulData) return;
+          if (!hasUsefulData) {
+            skippedEmpty++;
+            return;
+          }
 
           // Skip rows that look like test data (year 2000)
           const dateStr = parseDate(row.FECHA);
           const year = parseInt(dateStr.split("-")[0], 10);
           if (year < 2020) {
-            return; // Skip old test data
+            skippedOld++;
+            return;
           }
 
           const pnl = parsePnL(row["P&L"]);
@@ -326,9 +416,15 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
           parsed.push(trade);
         } catch (err) {
-          parseErrors.push(`Fila ${index + 2}: Error al procesar los datos`);
+          // +1 because Excel rows are 1-indexed
+          const excelRowNumber = headerRow + 1 + (index + 1);
+          parseErrors.push(`Fila ${excelRowNumber}: Error al procesar los datos`);
         }
       });
+
+      toast.info(
+        `Excel: ${extractedRows.length} filas leídas · ${parsed.length} operaciones válidas · ${skippedOld} antiguas omitidas · ${skippedEmpty} vacías · ${parseErrors.length} con error`
+      );
 
       setParsedTrades(parsed);
       setErrors(parseErrors);
