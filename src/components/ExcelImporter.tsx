@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,6 +49,17 @@ interface ParsedTrade {
   risk_percentage: number;
 }
 
+type SheetResult = {
+  sheetName: string;
+  extractedRows: ExcelRow[];
+  parsed: ParsedTrade[];
+  parseErrors: string[];
+  skippedEmpty: number;
+  skippedOld: number;
+  // Heuristic used to pick the best sheet
+  score: number;
+};
+
 interface ExcelImporterProps {
   onSuccess: () => void;
   accountId?: string;
@@ -59,9 +71,16 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const [importing, setImporting] = useState(false);
   const [rawData, setRawData] = useState<ExcelRow[]>([]);
   const [parsedTrades, setParsedTrades] = useState<ParsedTrade[]>([]);
+  const [sheetResults, setSheetResults] = useState<SheetResult[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedSheetResult = useMemo(() => {
+    if (!selectedSheet) return null;
+    return sheetResults.find((s) => s.sheetName === selectedSheet) ?? null;
+  }, [sheetResults, selectedSheet]);
 
   const parseWeekOfMonth = (semana: string | undefined): number => {
     if (!semana) return 1;
