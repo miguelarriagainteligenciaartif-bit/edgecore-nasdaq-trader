@@ -31,12 +31,8 @@ export function MonthlyResults({ trades }: MonthlyResultsProps) {
     const yearSet = new Set<number>();
     trades.forEach(trade => {
       if (trade.date) {
-        // Parse date correctly - format is YYYY-MM-DD
-        const dateParts = trade.date.split('-');
-        if (dateParts.length === 3) {
-          const year = parseInt(dateParts[0], 10);
-          if (year >= 2020 && !isNaN(year)) yearSet.add(year);
-        }
+        const year = new Date(trade.date).getFullYear();
+        if (year >= 2020) yearSet.add(year);
       }
     });
     return Array.from(yearSet).sort((a, b) => b - a); // Most recent first
@@ -49,15 +45,11 @@ export function MonthlyResults({ trades }: MonthlyResultsProps) {
 
     actualTrades.forEach(trade => {
       if (!trade.date) return;
-      
-      // Parse date correctly - format is YYYY-MM-DD
-      const dateParts = trade.date.split('-');
-      if (dateParts.length !== 3) return;
-      
-      const year = parseInt(dateParts[0], 10);
-      const month = parseInt(dateParts[1], 10) - 1; // 0-indexed for consistency with MONTH_NAMES
+      const date = new Date(trade.date);
+      const year = date.getFullYear();
+      const month = date.getMonth();
 
-      if (year < 2020 || isNaN(year) || isNaN(month)) return;
+      if (year < 2020) return;
 
       if (!data[year]) data[year] = {};
       if (!data[year][month]) data[year][month] = { pnl: 0, trades: 0, wins: 0 };
