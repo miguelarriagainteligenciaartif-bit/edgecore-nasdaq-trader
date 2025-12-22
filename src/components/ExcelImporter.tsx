@@ -77,6 +77,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const [progress, setProgress] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [dateFormat, setDateFormat] = useState<"auto" | "dmy" | "mdy">("auto");
+  const [autoDetectedFormat, setAutoDetectedFormat] = useState<"dmy" | "mdy" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedSheetResult = useMemo(() => {
@@ -108,7 +109,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     return formatYmd(d);
   };
 
-  const parseDate = (dateValue: any, fmt: "dmy" | "mdy"): string => {
+  const parseDate = (dateValue: any, fmt: "dmy" | "mdy", monthHint?: number | null): string => {
     if (!dateValue) return formatYmd(new Date());
 
     // Already YYYY-MM-DD
@@ -123,7 +124,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       return formatYmd(d);
     }
 
-    // d/m/yyyy or m/d/yyyy
+    // d/m/yyyy or m/d/yyyy (optionally disambiguate using MES column)
     if (typeof dateValue === "string") {
       const raw = dateValue.trim();
       const parts = raw.split("/");
@@ -135,12 +136,20 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(year)) {
           if (year < 100) year += year > 50 ? 1900 : 2000;
 
-          const day = fmt === "dmy" ? a : b;
-          const month = fmt === "dmy" ? b : a;
+          const dmy = { day: a, month: b };
+          const mdy = { day: b, month: a };
 
-          if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-            return parseDateFromParts(year, month, day);
+          const safe = (v: { day: number; month: number }) =>
+            v.month >= 1 && v.month <= 12 && v.day >= 1 && v.day <= 31;
+
+          // If we have a month hint (MES column), prefer the interpretation that matches it.
+          if (monthHint && monthHint >= 1 && monthHint <= 12) {
+            if (safe(dmy) && dmy.month === monthHint) return parseDateFromParts(year, dmy.month, dmy.day);
+            if (safe(mdy) && mdy.month === monthHint) return parseDateFromParts(year, mdy.month, mdy.day);
           }
+
+          const chosen = fmt === "dmy" ? dmy : mdy;
+          if (safe(chosen)) return parseDateFromParts(year, chosen.month, chosen.day);
         }
       }
     }
@@ -433,6 +442,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
 
         const effectiveDateFormat: "dmy" | "mdy" =
           dateFormat === "auto" ? detectFormatFromRows() : dateFormat;
+        setAutoDetectedFormat(effectiveDateFormat);
 
         extractedRows.forEach((row, index) => {
           try {
@@ -444,7 +454,12 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
               return;
             }
 
-            const dateStr = parseDate(row.FECHA, effectiveDateFormat);
+            const monthHint = parseInt(String((row as any).MES ?? ""), 10);
+            const dateStr = parseDate(
+              row.FECHA,
+              effectiveDateFormat,
+              Number.isFinite(monthHint) ? monthHint : null
+            );
             const year = parseInt(dateStr.split("-")[0], 10);
             if (year < 2020) {
               skippedOld++;
@@ -715,6 +730,11 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                 </CardTitle>
                 <CardDescription>
                   Revisa que los datos se hayan parseado correctamente
+                  {autoDetectedFormat && (
+                    <span className="block mt-1 text-xs">
+                      Formato detectado: <span className="font-medium">{autoDetectedFormat === "dmy" ? "Día/Mes/Año" : "Mes/Día/Año"}</span>
+                    </span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -722,7 +742,9 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Fecha</TableHead>
+                        <TableHead>Fecha (parseada)</TableHead>
+                        <TableHead>Fecha (CSV)</TableHead>
+                        <TableHead className="text-center">MES</TableHead>
                         <TableHead>Día</TableHead>
                         <TableHead>Hora</TableHead>
                         <TableHead>Tipo</TableHead>
@@ -732,32 +754,47 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {parsedTrades.slice(0, 10).map((trade, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="text-xs">{trade.date}</TableCell>
-                          <TableCell className="text-xs">{trade.day_of_week}</TableCell>
-                          <TableCell className="text-xs">{trade.entry_time}</TableCell>
-                          <TableCell>
-                            <Badge variant={trade.trade_type === "Compra" ? "default" : "secondary"} className="text-xs">
-                              {trade.trade_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">{trade.entry_model}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={trade.result_type === "TP" ? "default" : "destructive"} 
-                              className="text-xs"
-                            >
-                              {trade.result_type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className={`text-right text-xs font-mono ${trade.result_dollars >= 0 ? "text-success" : "text-destructive"}`}>
-                            ${trade.result_dollars.toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {parsedTrades.slice(0, 10).map((trade, i) => {
+                        const source = rawData.find((r) => {
+                          const pnl = parsePnL((r as any)["P&L"]);
+                          const monthHint = parseInt(String((r as any).MES ?? ""), 10);
+                          const fmt = dateFormat === "auto" ? (autoDetectedFormat ?? "dmy") : dateFormat;
+                          const parsed = parseDate((r as any).FECHA, fmt, Number.isFinite(monthHint) ? monthHint : null);
+                          return parsed === trade.date && pnl === trade.result_dollars;
+                        });
+
+                        const rawFecha = String((source as any)?.FECHA ?? "");
+                        const rawMes = String((source as any)?.MES ?? "");
+
+                        return (
+                          <TableRow key={i}>
+                            <TableCell className="text-xs font-mono">{trade.date}</TableCell>
+                            <TableCell className="text-xs font-mono text-muted-foreground">{rawFecha || "-"}</TableCell>
+                            <TableCell className="text-xs text-center font-mono text-muted-foreground">{rawMes || "-"}</TableCell>
+                            <TableCell className="text-xs">{trade.day_of_week}</TableCell>
+                            <TableCell className="text-xs">{trade.entry_time}</TableCell>
+                            <TableCell>
+                              <Badge variant={trade.trade_type === "Compra" ? "default" : "secondary"} className="text-xs">
+                                {trade.trade_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{trade.entry_model}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={trade.result_type === "TP" ? "default" : "destructive"}
+                                className="text-xs"
+                              >
+                                {trade.result_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className={`text-right text-xs font-mono ${trade.result_dollars >= 0 ? "text-success" : "text-destructive"}`}>
+                              ${trade.result_dollars.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                   {parsedTrades.length > 10 && (
