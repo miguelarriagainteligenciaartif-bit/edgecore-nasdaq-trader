@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ExcelRow {
   FECHA?: string;
@@ -57,6 +58,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [rawData, setRawData] = useState<ExcelRow[]>([]);
   const [parsedTrades, setParsedTrades] = useState<ParsedTrade[]>([]);
   const [progress, setProgress] = useState(0);
@@ -66,12 +68,144 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const parseWeekOfMonth = (semana: string | undefined): number => {
     if (!semana) return 1;
     const cleaned = semana.toUpperCase().replace(/[^0-9A-Z]/g, "");
-    if (cleaned.includes("1") || cleaned.includes("1ST")) return 1;
-    if (cleaned.includes("2") || cleaned.includes("2ND")) return 2;
-    if (cleaned.includes("3") || cleaned.includes("3RD")) return 3;
-    if (cleaned.includes("4") || cleaned.includes("4TH")) return 4;
-    if (cleaned.includes("5") || cleaned.includes("5TH")) return 5;
+    if (cleaned.includes("1ST") || cleaned === "1") return 1;
+    if (cleaned.includes("2ND") || cleaned === "2") return 2;
+    if (cleaned.includes("3RD") || cleaned === "3") return 3;
+    if (cleaned.includes("4TH") || cleaned === "4") return 4;
+    if (cleaned.includes("5TH") || cleaned === "5") return 5;
+    // Fallback: if it contains the digit
+    if (cleaned.includes("1")) return 1;
+    if (cleaned.includes("2")) return 2;
+    if (cleaned.includes("3")) return 3;
+    if (cleaned.includes("4")) return 4;
+    if (cleaned.includes("5")) return 5;
     return 1;
+  };
+
+  const processFile = async (file: File) => {
+    setLoading(true);
+    setErrors([]);
+    setRawData([]);
+    setParsedTrades([]);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array", cellDates: true });
+
+      // Read ALL sheets and merge rows (some Excels split data across tabs or ranges)
+      const allRows: ExcelRow[] = [];
+      const sheetCounts: Record<string, number> = {};
+
+      workbook.SheetNames.forEach((sheetName) => {
+        const worksheet = workbook.Sheets[sheetName];
+        if (!worksheet) return;
+
+        const rows: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, {
+          raw: false,
+          defval: "",
+        });
+
+        // Only keep sheets that actually look like the trades table
+        const looksLikeTrades = rows.some((r) => typeof r.FECHA !== "undefined" || (r as any)["FECHA"]);
+        if (!looksLikeTrades) return;
+
+        sheetCounts[sheetName] = rows.length;
+        allRows.push(...rows);
+      });
+
+      // De-duplicate identical rows (common when sheets overlap)
+      const seen = new Set<string>();
+      const jsonData: ExcelRow[] = [];
+      for (const row of allRows) {
+        const key = JSON.stringify(row);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        jsonData.push(row);
+      }
+
+      if (jsonData.length === 0) {
+        setErrors(["El archivo está vacío o no tiene el formato esperado (no encontré columnas como FECHA)"]);
+        return;
+      }
+
+      console.log("Excel sheets detected:", {
+        sheetNames: workbook.SheetNames,
+        sheetCounts,
+        mergedRows: jsonData.length,
+      });
+
+      setRawData(jsonData);
+
+      // Parse and map the data
+      const parsed: ParsedTrade[] = [];
+      const parseErrors: string[] = [];
+      let skippedTestData = 0;
+      let skippedNoDate = 0;
+
+      jsonData.forEach((row, index) => {
+        try {
+          const dateStr = parseDate(row.FECHA);
+          if (!dateStr) {
+            skippedNoDate++;
+            return;
+          }
+
+          const year = parseInt(dateStr.split("-")[0], 10);
+          if (year < 2020) {
+            skippedTestData++;
+            return;
+          }
+
+          const pnl = parsePnL(row["P&L"]);
+
+          const trade: ParsedTrade = {
+            date: dateStr,
+            day_of_week: mapDayOfWeek(row.DÍA),
+            week_of_month: parseWeekOfMonth(row.SEMANA),
+            entry_time: parseTime(row["HORA ENTRADA"]),
+            exit_time: row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"] ? parseTime(row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"]) : null,
+            trade_type: mapTradeType(row.TIPO),
+            entry_model: mapEntryModel(row.MODELO),
+            result_type: mapResultType(row.RESULTADO, pnl),
+            result_dollars: pnl,
+            had_news: row.NOTICIA ? !row.NOTICIA.toUpperCase().includes("NO NEWS") : false,
+            news_description: row.NOTICIA && !row.NOTICIA.toUpperCase().includes("NO NEWS") ? row.NOTICIA : null,
+            max_rr: parseNumber(row["RR MÁXIMO"]),
+            drawdown: parseNumber(row.DRAWDOWN),
+            image_link: row["LINK m1 (EJECUCIÓN)"] || row.LINK || null,
+            no_trade_day: false,
+            risk_percentage: 1,
+          };
+
+          parsed.push(trade);
+        } catch (err) {
+          parseErrors.push(`Fila ${index + 2}: Error al procesar los datos`);
+        }
+      });
+
+      if (skippedTestData > 0) parseErrors.unshift(`Se omitieron ${skippedTestData} filas de datos de prueba (año < 2020)`);
+      if (skippedNoDate > 0) parseErrors.unshift(`Se omitieron ${skippedNoDate} filas sin fecha válida`);
+
+      console.log("Excel Import Debug:", {
+        totalRows: jsonData.length,
+        parsedTrades: parsed.length,
+        skippedTestData,
+        skippedNoDate,
+        errors: parseErrors.length,
+      });
+
+      setParsedTrades(parsed);
+      setErrors(parseErrors);
+
+      if (parsed.length === 0) {
+        setErrors((prev) => [...prev, "No se pudieron parsear operaciones válidas del archivo"]);
+      }
+    } catch (err) {
+      console.error("Error reading file:", err);
+      setErrors(["Error al leer el archivo. Asegúrate de que es un archivo Excel válido."]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const parseDate = (dateValue: any): string | null => {
@@ -243,146 +377,45 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    await processFile(file);
+  };
 
-    setLoading(true);
-    setErrors([]);
-    setRawData([]);
-    setParsedTrades([]);
+  const handleDrop = async (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
 
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array", cellDates: true });
-      
-      // Read ALL sheets and merge rows (some Excels split data across tabs or ranges)
-      const allRows: ExcelRow[] = [];
-      const sheetCounts: Record<string, number> = {};
+    if (loading || importing) return;
 
-      workbook.SheetNames.forEach((sheetName) => {
-        const worksheet = workbook.Sheets[sheetName];
-        if (!worksheet) return;
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
 
-        const rows: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet, {
-          raw: false,
-          defval: "",
-        });
-
-        // Only keep sheets that actually look like the trades table
-        const looksLikeTrades = rows.some((r) => typeof r.FECHA !== "undefined" || (r as any)["FECHA"]);
-        if (!looksLikeTrades) return;
-
-        sheetCounts[sheetName] = rows.length;
-        allRows.push(...rows);
-      });
-
-      // De-duplicate identical rows (common when sheets overlap)
-      const seen = new Set<string>();
-      const jsonData: ExcelRow[] = [];
-      for (const row of allRows) {
-        const key = JSON.stringify(row);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        jsonData.push(row);
-      }
-
-      if (jsonData.length === 0) {
-        setErrors(["El archivo está vacío o no tiene el formato esperado (no encontré columnas como FECHA)"]); 
-        setLoading(false);
-        return;
-      }
-
-      // Debug sheet stats
-      console.log("Excel sheets detected:", {
-        sheetNames: workbook.SheetNames,
-        sheetCounts,
-        mergedRows: jsonData.length,
-      });
-
-      setRawData(jsonData);
-
-      // Parse and map the data
-      const parsed: ParsedTrade[] = [];
-      const parseErrors: string[] = [];
-      let skippedTestData = 0;
-      let skippedNoDate = 0;
-
-      jsonData.forEach((row, index) => {
-        try {
-          // Skip rows without a date
-          const dateStr = parseDate(row.FECHA);
-          if (!dateStr) {
-            skippedNoDate++;
-            return;
-          }
-          
-          const year = parseInt(dateStr.split("-")[0], 10);
-          // Skip rows that look like test data (year before 2020)
-          if (year < 2020) {
-            skippedTestData++;
-            return;
-          }
-
-          const pnl = parsePnL(row["P&L"]);
-          
-          const trade: ParsedTrade = {
-            date: dateStr,
-            day_of_week: mapDayOfWeek(row.DÍA),
-            week_of_month: parseWeekOfMonth(row.SEMANA),
-            entry_time: parseTime(row["HORA ENTRADA"]),
-            exit_time: row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"] 
-              ? parseTime(row["HORA SALIDA EN 1:2"] || row["HORA SALIDA"]) 
-              : null,
-            trade_type: mapTradeType(row.TIPO),
-            entry_model: mapEntryModel(row.MODELO),
-            result_type: mapResultType(row.RESULTADO, pnl),
-            result_dollars: pnl,
-            had_news: row.NOTICIA ? !row.NOTICIA.toUpperCase().includes("NO NEWS") : false,
-            news_description: row.NOTICIA && !row.NOTICIA.toUpperCase().includes("NO NEWS") 
-              ? row.NOTICIA 
-              : null,
-            max_rr: parseNumber(row["RR MÁXIMO"]),
-            drawdown: parseNumber(row.DRAWDOWN),
-            image_link: row["LINK m1 (EJECUCIÓN)"] || row.LINK || null,
-            no_trade_day: false,
-            risk_percentage: 1,
-          };
-
-          parsed.push(trade);
-        } catch (err) {
-          parseErrors.push(`Fila ${index + 2}: Error al procesar los datos`);
-        }
-      });
-
-      // Add info about skipped rows
-      if (skippedTestData > 0) {
-        parseErrors.unshift(`Se omitieron ${skippedTestData} filas de datos de prueba (año < 2020)`);
-      }
-      if (skippedNoDate > 0) {
-        parseErrors.unshift(`Se omitieron ${skippedNoDate} filas sin fecha válida`);
-      }
-      
-      // Log for debugging
-      console.log("Excel Import Debug:", {
-        totalRows: jsonData.length,
-        parsedTrades: parsed.length,
-        skippedTestData,
-        skippedNoDate,
-        errors: parseErrors.length,
-        sampleRow: jsonData[0],
-        sampleParsedDate: jsonData[0] ? parseDate(jsonData[0].FECHA) : null
-      });
-
-      setParsedTrades(parsed);
-      setErrors(parseErrors);
-
-      if (parsed.length === 0) {
-        setErrors(prev => [...prev, "No se pudieron parsear operaciones válidas del archivo"]);
-      }
-    } catch (err) {
-      console.error("Error reading file:", err);
-      setErrors(["Error al leer el archivo. Asegúrate de que es un archivo Excel válido."]);
-    } finally {
-      setLoading(false);
+    // Basic guard: only accept Excel
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+      toast.error("Sube un archivo Excel (.xlsx o .xls)");
+      return;
     }
+
+    // Keep input value in sync (optional)
+    if (fileInputRef.current) {
+      // Can't set FileList programmatically in a standard way; just process directly.
+      fileInputRef.current.value = "";
+    }
+
+    await processFile(file);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
   };
 
   const handleImport = async () => {
@@ -485,7 +518,15 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                <label
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
+                    isDragging ? "bg-muted/60 border-primary" : "hover:bg-muted/50"
+                  )}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                     <p className="mb-2 text-sm text-muted-foreground">
