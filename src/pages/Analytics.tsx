@@ -69,6 +69,15 @@ export default function Analytics() {
   const winningTrades = actualTrades.filter(t => t.result_type === "TP");
   const losingTrades = actualTrades.filter(t => t.result_type === "SL");
 
+  // Ensure consistent chronological order (date + entry_time)
+  const sortedActualTrades = [...actualTrades].sort((a, b) => {
+    const dateCompare = a.date.localeCompare(b.date);
+    if (dateCompare !== 0) return dateCompare;
+    const timeCompare = (a.entry_time || "").localeCompare(b.entry_time || "");
+    if (timeCompare !== 0) return timeCompare;
+    return a.id.localeCompare(b.id);
+  });
+
   // Calculate main metrics
   const totalPnL = actualTrades.reduce((sum, t) => sum + (t.result_dollars || 0), 0);
   const winRate = actualTrades.length > 0 ? (winningTrades.length / actualTrades.length * 100) : 0;
@@ -86,7 +95,7 @@ export default function Analytics() {
   let currentSLStreak = 0;
   let worstSLStreak = 0;
 
-  actualTrades.forEach(trade => {
+  sortedActualTrades.forEach(trade => {
     if (trade.result_type === "TP") {
       currentTPStreak++;
       currentSLStreak = 0;
@@ -222,7 +231,7 @@ export default function Analytics() {
 
   // Equity curve data
   let cumulative = 0;
-  const equityCurveData = actualTrades.map((trade, index) => {
+  const equityCurveData = sortedActualTrades.map((trade, index) => {
     cumulative += (trade.result_dollars || 0);
     return {
       trade: index + 1,
