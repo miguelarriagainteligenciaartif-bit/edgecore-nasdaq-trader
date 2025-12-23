@@ -245,7 +245,7 @@ export default function Index() {
         {/* Report Generator and Excel Importer */}
         <div className="flex justify-end gap-2">
           <ExcelImporter onSuccess={loadTrades} />
-          <ReportGenerator trades={trades} />
+          <ReportGenerator trades={allTrades} />
         </div>
 
         {/* Stats Grid */}
