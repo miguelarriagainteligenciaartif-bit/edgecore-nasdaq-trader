@@ -115,15 +115,19 @@ export default function Index() {
     ? trades 
     : trades.filter(t => t.account_id === selectedAccount);
 
-  // Calcular rachas consecutivas
+  // Calcular rachas consecutivas (orden cronológico real: fecha + hora de entrada)
   let currentTPStreak = 0;
   let bestTPStreak = 0;
   let currentSLStreak = 0;
   let worstSLStreak = 0;
 
-  const sortedTrades = [...actualTrades].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
+  const sortedTrades = [...actualTrades].sort((a, b) => {
+    const dateCompare = a.date.localeCompare(b.date);
+    if (dateCompare !== 0) return dateCompare;
+    const timeCompare = (a.entry_time || "").localeCompare(b.entry_time || "");
+    if (timeCompare !== 0) return timeCompare;
+    return a.id.localeCompare(b.id);
+  });
 
   sortedTrades.forEach(trade => {
     if (trade.result_type === "TP") {
