@@ -56,7 +56,8 @@ export default function Analytics() {
     const { data, error } = await supabase
       .from("trades")
       .select("*")
-      .order("date", { ascending: true });
+      .order("date", { ascending: true })
+      .order("entry_time", { ascending: true });
 
     if (!error && data) {
       setTrades(data);
