@@ -411,7 +411,10 @@ export default function Index() {
         <TradeDetailsDialog 
           trade={selectedTrade}
           open={detailsOpen}
-          onOpenChange={setDetailsOpen}
+          onOpenChange={(open) => {
+            setDetailsOpen(open);
+            if (!open) setSelectedTrade(null);
+          }}
           onUpdated={loadTrades}
         />
       </main>
