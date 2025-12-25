@@ -412,6 +412,7 @@ export default function Index() {
           trade={selectedTrade}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
+          onUpdated={loadTrades}
         />
       </main>
     </div>
