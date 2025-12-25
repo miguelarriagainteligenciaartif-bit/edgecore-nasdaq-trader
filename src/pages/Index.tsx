@@ -77,30 +77,36 @@ export default function Index() {
 
   const loadTrades = async () => {
     setLoading(true);
-    
-    // Load ALL trades for metrics (no limit)
-    const { data: allData } = await supabase
-      .from("trades")
-      .select("*")
-      .order("date", { ascending: false })
-      .order("entry_time", { ascending: false });
 
-    if (allData) {
-      setAllTrades(allData);
-      setHasMoreTrades(allData.length > tradesLimit);
-      setTrades(allData.slice(0, tradesLimit));
+    try {
+      // Load ALL trades for metrics (no limit)
+      const { data: allData, error: allError } = await supabase
+        .from("trades")
+        .select("*")
+        .order("date", { ascending: false })
+        .order("entry_time", { ascending: false });
+
+      if (allError) throw allError;
+
+      if (allData) {
+        setAllTrades(allData);
+        setHasMoreTrades(allData.length > tradesLimit);
+        setTrades(allData.slice(0, tradesLimit));
+      }
+
+      const { data: accountsData, error: accountsError } = await supabase
+        .from("accounts")
+        .select("*")
+        .order("name");
+
+      if (accountsError) throw accountsError;
+
+      if (accountsData) {
+        setAccounts(accountsData);
+      }
+    } finally {
+      setLoading(false);
     }
-
-    const { data: accountsData } = await supabase
-      .from("accounts")
-      .select("*")
-      .order("name");
-    
-    if (accountsData) {
-      setAccounts(accountsData);
-    }
-
-    setLoading(false);
   };
 
   // Use ALL trades for metrics, not limited trades
