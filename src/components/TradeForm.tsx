@@ -15,7 +15,12 @@ const formSchema = z.object({
   no_trade_day: z.boolean().default(false),
   account_id: z.string().optional(),
   asset: z.enum(["Nasdaq 100", "Oro", "BTC", "EUR/USD", "GBP/USD", "Petróleo", "S&P 500", "Otro"]).default("Nasdaq 100"),
-  date: z.string().min(1, "Fecha requerida"),
+  date: z.string().min(1, "Fecha requerida").refine((val) => {
+    const inputDate = new Date(val + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return inputDate <= today;
+  }, { message: "La fecha no puede ser futura" }),
   day_of_week: z.enum(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]),
   entry_time: z.string().optional(),
   exit_time: z.string().optional(),
