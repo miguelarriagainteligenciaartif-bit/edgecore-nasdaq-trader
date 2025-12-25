@@ -113,6 +113,25 @@ export const EditTradeForm = ({ trade, onSuccess, isBacktest = false }: EditTrad
   const noTradeDay = form.watch("no_trade_day");
   const hadNews = form.watch("had_news");
   const newsDescription = form.watch("news_description");
+  const watchedDate = form.watch("date");
+
+  // Auto-update day_of_week when date changes
+  useEffect(() => {
+    if (watchedDate) {
+      const date = new Date(watchedDate + "T12:00:00");
+      const dayIndex = date.getDay();
+      const days: Record<number, "Lunes" | "Martes" | "Miércoles" | "Jueves" | "Viernes"> = {
+        1: "Lunes",
+        2: "Martes",
+        3: "Miércoles",
+        4: "Jueves",
+        5: "Viernes",
+      };
+      if (days[dayIndex]) {
+        form.setValue("day_of_week", days[dayIndex]);
+      }
+    }
+  }, [watchedDate, form]);
 
   useEffect(() => {
     if (!isBacktest) {
