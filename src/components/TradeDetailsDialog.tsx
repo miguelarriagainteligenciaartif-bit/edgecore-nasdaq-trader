@@ -89,6 +89,7 @@ export const TradeDetailsDialog = ({ trade, open, onOpenChange, onUpdated }: Tra
               onSuccess={() => {
                 setIsEditing(false);
                 onUpdated?.();
+                onOpenChange(false);
               }}
               isBacktest={false}
             />
