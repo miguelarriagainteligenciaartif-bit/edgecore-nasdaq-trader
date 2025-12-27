@@ -5,12 +5,12 @@ import { cn } from "@/lib/utils";
 
 interface RotationalSummaryProps {
   state: RotationalState;
-  initialCapitalPerAccount: number;
+  initialBalances: number[];
 }
 
 export const RotationalSummary = ({
   state,
-  initialCapitalPerAccount,
+  initialBalances,
 }: RotationalSummaryProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("es-ES", {
@@ -24,7 +24,7 @@ export const RotationalSummary = ({
     return `${value.toFixed(1)}%`;
   };
 
-  const totalInitialCapital = initialCapitalPerAccount * state.accounts.length;
+  const totalInitialCapital = initialBalances.reduce((sum, bal) => sum + bal, 0);
   const totalPnL = state.totalBalance - totalInitialCapital;
   const roi = totalInitialCapital > 0 ? (totalPnL / totalInitialCapital) * 100 : 0;
 
