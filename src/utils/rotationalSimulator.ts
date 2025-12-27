@@ -2,6 +2,7 @@ export interface RotationalConfig {
   numberOfAccounts: number;
   initialCapitalPerAccount: number;
   riskPerTrade: number;
+  riskRewardRatio: number; // e.g., 2 means 1:2 (win 2x risk)
 }
 
 export type RotationalTradeResult = 'TP' | 'SL';
@@ -42,9 +43,11 @@ export const initializeRotationalState = (config: RotationalConfig): RotationalS
 export const processTrade = (
   state: RotationalState,
   result: RotationalTradeResult,
-  riskPerTrade: number
+  riskPerTrade: number,
+  riskRewardRatio: number = 1
 ): RotationalState => {
-  const amount = result === 'TP' ? riskPerTrade : -riskPerTrade;
+  // TP gana riskPerTrade * ratio, SL pierde riskPerTrade
+  const amount = result === 'TP' ? riskPerTrade * riskRewardRatio : -riskPerTrade;
   const accountIndex = state.currentTurnIndex;
   const balanceBefore = state.accounts[accountIndex];
   const balanceAfter = balanceBefore + amount;
@@ -109,11 +112,12 @@ export const undoLastTrade = (state: RotationalState): RotationalState => {
 export const processMultipleTrades = (
   initialState: RotationalState,
   results: RotationalTradeResult[],
-  riskPerTrade: number
+  riskPerTrade: number,
+  riskRewardRatio: number = 1
 ): RotationalState => {
   let state = initialState;
   for (const result of results) {
-    state = processTrade(state, result, riskPerTrade);
+    state = processTrade(state, result, riskPerTrade, riskRewardRatio);
   }
   return state;
 };
