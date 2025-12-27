@@ -104,3 +104,16 @@ export const undoLastTrade = (state: RotationalState): RotationalState => {
     winRate,
   };
 };
+
+// Process multiple trades at once (for batch simulation)
+export const processMultipleTrades = (
+  initialState: RotationalState,
+  results: RotationalTradeResult[],
+  riskPerTrade: number
+): RotationalState => {
+  let state = initialState;
+  for (const result of results) {
+    state = processTrade(state, result, riskPerTrade);
+  }
+  return state;
+};
