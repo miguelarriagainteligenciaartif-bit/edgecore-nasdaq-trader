@@ -5,15 +5,19 @@ import { RotationalAccountsDisplay } from "@/components/rotational/RotationalAcc
 import { RotationalTradeInput } from "@/components/rotational/RotationalTradeInput";
 import { RotationalTradeHistory } from "@/components/rotational/RotationalTradeHistory";
 import { RotationalSummary } from "@/components/rotational/RotationalSummary";
+import { TradeSelector } from "@/components/rotational/TradeSelector";
 import {
   RotationalConfig,
   RotationalState,
+  RotationalTradeResult,
   initializeRotationalState,
   processTrade,
+  processMultipleTrades,
   undoLastTrade,
 } from "@/utils/rotationalSimulator";
 import { supabase } from "@/integrations/supabase/client";
 import { Layers } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FlipRotational = () => {
   const [user, setUser] = useState<any>(null);
@@ -24,6 +28,7 @@ const FlipRotational = () => {
   });
   const [state, setState] = useState<RotationalState | null>(null);
   const [isSimulationActive, setIsSimulationActive] = useState(false);
+  const [simulationMode, setSimulationMode] = useState<"manual" | "real">("manual");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -43,6 +48,15 @@ const FlipRotational = () => {
     const initialState = initializeRotationalState(config);
     setState(initialState);
     setIsSimulationActive(true);
+    setSimulationMode("manual");
+  };
+
+  const handleStartWithRealTrades = (results: RotationalTradeResult[]) => {
+    const initialState = initializeRotationalState(config);
+    const finalState = processMultipleTrades(initialState, results, config.riskPerTrade);
+    setState(finalState);
+    setIsSimulationActive(true);
+    setSimulationMode("real");
   };
 
   const handleTradeResult = (result: "TP" | "SL") => {
@@ -60,6 +74,11 @@ const FlipRotational = () => {
   const handleReset = () => {
     const initialState = initializeRotationalState(config);
     setState(initialState);
+  };
+
+  const handleNewSimulation = () => {
+    setState(null);
+    setIsSimulationActive(false);
   };
 
   return (
@@ -88,48 +107,71 @@ const FlipRotational = () => {
 
       {/* Content */}
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <RotationalConfigForm
-          config={config}
-          onConfigChange={setConfig}
-          onStart={handleStartSimulation}
-          isSimulationActive={isSimulationActive}
-        />
-
-        {state && (
+        {!isSimulationActive ? (
           <>
+            <RotationalConfigForm
+              config={config}
+              onConfigChange={setConfig}
+              onStart={handleStartSimulation}
+              isSimulationActive={isSimulationActive}
+            />
+
+            <Tabs defaultValue="real" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsTrigger value="real">Usar Trades Reales</TabsTrigger>
+                <TabsTrigger value="manual">Simulación Manual</TabsTrigger>
+              </TabsList>
+              <TabsContent value="real" className="mt-4">
+                <TradeSelector
+                  onTradesSelected={handleStartWithRealTrades}
+                  isSimulationActive={isSimulationActive}
+                />
+              </TabsContent>
+              <TabsContent value="manual" className="mt-4">
+                <div className="text-center py-12 border border-dashed border-border/50 rounded-lg bg-card/30">
+                  <div className="text-muted-foreground space-y-2">
+                    <p className="text-lg">
+                      👆 Configura los parámetros y haz clic en "Iniciar Simulación"
+                    </p>
+                    <p className="text-sm">
+                      Ingresarás manualmente cada resultado (TP/SL)
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </>
+        ) : (
+          <>
+            <div className="flex justify-end">
+              <button
+                onClick={handleNewSimulation}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors underline"
+              >
+                ← Nueva simulación
+              </button>
+            </div>
+
             <RotationalSummary
-              state={state}
+              state={state!}
               initialCapitalPerAccount={config.initialCapitalPerAccount}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <RotationalTradeInput
-                state={state}
+                state={state!}
                 onTradeResult={handleTradeResult}
                 onUndo={handleUndo}
                 onReset={handleReset}
               />
               <RotationalAccountsDisplay
-                state={state}
+                state={state!}
                 initialCapital={config.initialCapitalPerAccount}
               />
             </div>
 
-            <RotationalTradeHistory trades={state.trades} />
+            <RotationalTradeHistory trades={state!.trades} />
           </>
-        )}
-
-        {!isSimulationActive && (
-          <div className="text-center py-12">
-            <div className="text-muted-foreground space-y-2">
-              <p className="text-lg">
-                👆 Configura los parámetros y haz clic en "Iniciar Simulación"
-              </p>
-              <p className="text-sm">
-                Define el número de cuentas, capital inicial y riesgo por trade
-              </p>
-            </div>
-          </div>
         )}
       </div>
     </div>
