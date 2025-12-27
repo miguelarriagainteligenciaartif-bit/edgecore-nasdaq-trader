@@ -1,4 +1,4 @@
-import { BarChart3, FlaskConical, Activity, Save } from "lucide-react";
+import { BarChart3, FlaskConical, Activity, Save, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -73,6 +73,14 @@ export const Header = ({ userName }: HeaderProps) => {
               >
                 <Activity className="mr-2 h-4 w-4" />
                 X5 Simulator
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/flip-rotational")}
+              >
+                <Layers className="mr-2 h-4 w-4" />
+                Flip Rotacional
               </Button>
               <Button 
                 variant="ghost" 
