@@ -1,6 +1,6 @@
 export interface RotationalConfig {
   numberOfAccounts: number;
-  initialCapitalPerAccount: number;
+  initialBalances: number[]; // Balance inicial de cada cuenta
   riskPerTrade: number;
   riskRewardRatio: number; // e.g., 2 means 1:2 (win 2x risk)
 }
@@ -28,7 +28,8 @@ export interface RotationalState {
 }
 
 export const initializeRotationalState = (config: RotationalConfig): RotationalState => {
-  const accounts = Array(config.numberOfAccounts).fill(config.initialCapitalPerAccount);
+  // Usar los balances individuales definidos por el usuario
+  const accounts = [...config.initialBalances];
   return {
     accounts,
     currentTurnIndex: 0,

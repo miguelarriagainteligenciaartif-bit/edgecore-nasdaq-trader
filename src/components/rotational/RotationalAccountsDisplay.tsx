@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils";
 
 interface RotationalAccountsDisplayProps {
   state: RotationalState;
-  initialCapital: number;
+  initialBalances: number[];
 }
 
 export const RotationalAccountsDisplay = ({
   state,
-  initialCapital,
+  initialBalances,
 }: RotationalAccountsDisplayProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("es-ES", {
@@ -21,12 +21,14 @@ export const RotationalAccountsDisplay = ({
     }).format(value);
   };
 
-  const getAccountStatus = (balance: number) => {
-    const diff = balance - initialCapital;
+  const getAccountStatus = (balance: number, initialBalance: number) => {
+    const diff = balance - initialBalance;
     if (diff > 0) return "profit";
     if (diff < 0) return "loss";
     return "neutral";
   };
+
+  const totalInitialCapital = initialBalances.reduce((sum, bal) => sum + bal, 0);
 
   return (
     <Card className="bg-card border-border">
@@ -40,8 +42,9 @@ export const RotationalAccountsDisplay = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {state.accounts.map((balance, index) => {
             const isCurrentTurn = index === state.currentTurnIndex;
-            const status = getAccountStatus(balance);
-            const pnl = balance - initialCapital;
+            const initialBalance = initialBalances[index] || 0;
+            const status = getAccountStatus(balance, initialBalance);
+            const pnl = balance - initialBalance;
 
             return (
               <div
@@ -95,18 +98,18 @@ export const RotationalAccountsDisplay = ({
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-muted-foreground">
-              Capital Inicial Total: {formatCurrency(initialCapital * state.accounts.length)}
+              Capital Inicial Total: {formatCurrency(totalInitialCapital)}
             </span>
             <span
               className={cn(
                 "text-sm font-medium",
-                state.totalBalance >= initialCapital * state.accounts.length
+                state.totalBalance >= totalInitialCapital
                   ? "text-accent"
                   : "text-destructive"
               )}
             >
-              {state.totalBalance >= initialCapital * state.accounts.length ? "+" : ""}
-              {formatCurrency(state.totalBalance - initialCapital * state.accounts.length)}
+              {state.totalBalance >= totalInitialCapital ? "+" : ""}
+              {formatCurrency(state.totalBalance - totalInitialCapital)}
             </span>
           </div>
         </div>

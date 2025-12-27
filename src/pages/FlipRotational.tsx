@@ -23,7 +23,7 @@ const FlipRotational = () => {
   const [user, setUser] = useState<any>(null);
   const [config, setConfig] = useState<RotationalConfig>({
     numberOfAccounts: 4,
-    initialCapitalPerAccount: 50000,
+    initialBalances: [50000, 50000, 50000, 50000],
     riskPerTrade: 2500,
     riskRewardRatio: 2,
   });
@@ -155,7 +155,7 @@ const FlipRotational = () => {
 
             <RotationalSummary
               state={state!}
-              initialCapitalPerAccount={config.initialCapitalPerAccount}
+              initialBalances={config.initialBalances}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -167,7 +167,7 @@ const FlipRotational = () => {
               />
               <RotationalAccountsDisplay
                 state={state!}
-                initialCapital={config.initialCapitalPerAccount}
+                initialBalances={config.initialBalances}
               />
             </div>
 
