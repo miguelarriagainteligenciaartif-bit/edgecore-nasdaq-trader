@@ -25,6 +25,7 @@ const FlipRotational = () => {
     numberOfAccounts: 4,
     initialCapitalPerAccount: 50000,
     riskPerTrade: 2500,
+    riskRewardRatio: 2,
   });
   const [state, setState] = useState<RotationalState | null>(null);
   const [isSimulationActive, setIsSimulationActive] = useState(false);
@@ -53,7 +54,7 @@ const FlipRotational = () => {
 
   const handleStartWithRealTrades = (results: RotationalTradeResult[]) => {
     const initialState = initializeRotationalState(config);
-    const finalState = processMultipleTrades(initialState, results, config.riskPerTrade);
+    const finalState = processMultipleTrades(initialState, results, config.riskPerTrade, config.riskRewardRatio);
     setState(finalState);
     setIsSimulationActive(true);
     setSimulationMode("real");
@@ -61,7 +62,7 @@ const FlipRotational = () => {
 
   const handleTradeResult = (result: "TP" | "SL") => {
     if (!state) return;
-    const newState = processTrade(state, result, config.riskPerTrade);
+    const newState = processTrade(state, result, config.riskPerTrade, config.riskRewardRatio);
     setState(newState);
   };
 

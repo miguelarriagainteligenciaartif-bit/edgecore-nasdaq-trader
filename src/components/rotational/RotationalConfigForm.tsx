@@ -72,7 +72,7 @@ export const RotationalConfigForm = ({
 
           <div className="space-y-2">
             <Label htmlFor="riskPerTrade">
-              Riesgo/Ganancia por Trade ($)
+              Riesgo por Trade ($)
             </Label>
             <Input
               id="riskPerTrade"
@@ -85,7 +85,27 @@ export const RotationalConfigForm = ({
               className="bg-secondary/50"
             />
             <p className="text-xs text-muted-foreground">
-              Monto fijo ganado (TP) o perdido (SL) - R/R 1:1
+              Monto arriesgado por operación
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="riskRewardRatio">
+              Ratio R:R (1:X)
+            </Label>
+            <Input
+              id="riskRewardRatio"
+              type="number"
+              min={0.5}
+              max={10}
+              step={0.5}
+              value={config.riskRewardRatio}
+              onChange={(e) => handleChange("riskRewardRatio", parseFloat(e.target.value) || 1)}
+              disabled={isSimulationActive}
+              className="bg-secondary/50"
+            />
+            <p className="text-xs text-muted-foreground">
+              Ej: 2 = Ganar $2 por cada $1 arriesgado
             </p>
           </div>
         </div>
