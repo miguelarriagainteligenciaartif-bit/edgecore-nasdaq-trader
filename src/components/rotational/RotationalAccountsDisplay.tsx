@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, ArrowRight } from "lucide-react";
+import { Wallet, ArrowRight, TrendingDown } from "lucide-react";
 import { RotationalState } from "@/utils/rotationalSimulator";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,7 @@ export const RotationalAccountsDisplay = ({
   };
 
   const totalInitialCapital = initialBalances.reduce((sum, bal) => sum + bal, 0);
+  const maxTotalDrawdown = state.accountDrawdowns.reduce((sum, dd) => sum + dd.max, 0);
 
   return (
     <Card className="bg-card border-border">
@@ -45,6 +46,10 @@ export const RotationalAccountsDisplay = ({
             const initialBalance = initialBalances[index] || 0;
             const status = getAccountStatus(balance, initialBalance);
             const pnl = balance - initialBalance;
+            const drawdown = state.accountDrawdowns[index];
+            const drawdownPercent = drawdown.peak > 0 
+              ? ((drawdown.max / drawdown.peak) * 100).toFixed(1) 
+              : "0";
 
             return (
               <div
@@ -83,6 +88,17 @@ export const RotationalAccountsDisplay = ({
                     {pnl >= 0 ? "+" : ""}
                     {formatCurrency(pnl)}
                   </p>
+                  {/* Drawdown display */}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1 border-t border-border/50">
+                    <TrendingDown className="h-3 w-3 text-destructive" />
+                    <span>DD Max:</span>
+                    <span className={cn(
+                      "font-medium",
+                      drawdown.max > 0 ? "text-destructive" : "text-muted-foreground"
+                    )}>
+                      {formatCurrency(drawdown.max)} ({drawdownPercent}%)
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -110,6 +126,15 @@ export const RotationalAccountsDisplay = ({
             >
               {state.totalBalance >= totalInitialCapital ? "+" : ""}
               {formatCurrency(state.totalBalance - totalInitialCapital)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <TrendingDown className="h-3 w-3 text-destructive" />
+              Drawdown Máximo Combinado:
+            </span>
+            <span className="text-sm font-medium text-destructive">
+              {formatCurrency(maxTotalDrawdown)}
             </span>
           </div>
         </div>
