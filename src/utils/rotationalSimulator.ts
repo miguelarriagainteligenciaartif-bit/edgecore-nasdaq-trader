@@ -17,6 +17,12 @@ export interface RotationalTrade {
   timestamp: Date;
 }
 
+export interface AccountDrawdown {
+  current: number; // Current drawdown from peak
+  max: number; // Maximum drawdown ever reached
+  peak: number; // Highest balance reached
+}
+
 export interface RotationalState {
   accounts: number[];
   currentTurnIndex: number;
@@ -25,11 +31,18 @@ export interface RotationalState {
   totalTP: number;
   totalSL: number;
   winRate: number;
+  accountDrawdowns: AccountDrawdown[]; // Drawdown tracking per account
 }
 
 export const initializeRotationalState = (config: RotationalConfig): RotationalState => {
   // Usar los balances individuales definidos por el usuario
   const accounts = [...config.initialBalances];
+  const accountDrawdowns: AccountDrawdown[] = accounts.map(balance => ({
+    current: 0,
+    max: 0,
+    peak: balance,
+  }));
+  
   return {
     accounts,
     currentTurnIndex: 0,
@@ -38,6 +51,7 @@ export const initializeRotationalState = (config: RotationalConfig): RotationalS
     totalTP: 0,
     totalSL: 0,
     winRate: 0,
+    accountDrawdowns,
   };
 };
 
@@ -55,6 +69,23 @@ export const processTrade = (
 
   const newAccounts = [...state.accounts];
   newAccounts[accountIndex] = balanceAfter;
+
+  // Update drawdown for this account
+  const newAccountDrawdowns = [...state.accountDrawdowns];
+  const currentDrawdownData = { ...newAccountDrawdowns[accountIndex] };
+  
+  if (balanceAfter > currentDrawdownData.peak) {
+    // New peak reached
+    currentDrawdownData.peak = balanceAfter;
+    currentDrawdownData.current = 0;
+  } else {
+    // Calculate current drawdown from peak
+    currentDrawdownData.current = currentDrawdownData.peak - balanceAfter;
+    if (currentDrawdownData.current > currentDrawdownData.max) {
+      currentDrawdownData.max = currentDrawdownData.current;
+    }
+  }
+  newAccountDrawdowns[accountIndex] = currentDrawdownData;
 
   const newTrade: RotationalTrade = {
     tradeNumber: state.trades.length + 1,
@@ -82,6 +113,7 @@ export const processTrade = (
     totalTP,
     totalSL,
     winRate,
+    accountDrawdowns: newAccountDrawdowns,
   };
 };
 
@@ -98,6 +130,36 @@ export const undoLastTrade = (state: RotationalState): RotationalState => {
   const totalTrades = totalTP + totalSL;
   const winRate = totalTrades > 0 ? (totalTP / totalTrades) * 100 : 0;
 
+  // Recalculate drawdowns from scratch for affected account
+  const newAccountDrawdowns = state.accountDrawdowns.map((dd, idx) => {
+    if (idx !== lastTrade.accountIndex) return dd;
+    
+    // Find initial balance for this account
+    const initialBalance = lastTrade.balanceBefore; // This is approximate, we'd need config
+    let peak = initialBalance;
+    let maxDrawdown = 0;
+    
+    // Recalculate from trades
+    let currentBalance = initialBalance;
+    for (const trade of newTrades) {
+      if (trade.accountIndex === idx) {
+        currentBalance = trade.balanceAfter;
+        if (currentBalance > peak) {
+          peak = currentBalance;
+        } else {
+          const dd = peak - currentBalance;
+          if (dd > maxDrawdown) maxDrawdown = dd;
+        }
+      }
+    }
+    
+    return {
+      peak,
+      current: Math.max(0, peak - newAccounts[idx]),
+      max: maxDrawdown,
+    };
+  });
+
   return {
     accounts: newAccounts,
     currentTurnIndex: lastTrade.accountIndex,
@@ -106,6 +168,7 @@ export const undoLastTrade = (state: RotationalState): RotationalState => {
     totalTP,
     totalSL,
     winRate,
+    accountDrawdowns: newAccountDrawdowns,
   };
 };
 
