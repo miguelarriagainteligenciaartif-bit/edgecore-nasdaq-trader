@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { FlipConfigForm } from "@/components/FlipConfigForm";
 import { FlipTradeInput } from "@/components/FlipTradeInput";
+import { FlipTradeSelector } from "@/components/FlipTradeSelector";
 import { FlipResultsTable } from "@/components/FlipResultsTable";
 import { FlipSummaryCards } from "@/components/FlipSummaryCards";
 import { FlipChart } from "@/components/FlipChart";
@@ -110,6 +111,8 @@ const EdgecoreX5 = () => {
       {/* Content */}
       <div className="container mx-auto px-4 py-8 space-y-6">
         <FlipConfigForm initialConfig={config} onConfigChange={setConfig} />
+        
+        <FlipTradeSelector onTradesSelected={(newTrades) => setTrades([...trades, ...newTrades])} />
         
         <FlipTradeInput trades={trades} onTradesChange={setTrades} />
 
