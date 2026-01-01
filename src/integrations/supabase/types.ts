@@ -208,6 +208,45 @@ export type Database = {
           },
         ]
       }
+      economic_events: {
+        Row: {
+          actual: string | null
+          created_at: string
+          currency: string
+          event_date: string
+          event_name: string
+          event_time: string
+          forecast: string | null
+          id: string
+          impact: string
+          previous: string | null
+        }
+        Insert: {
+          actual?: string | null
+          created_at?: string
+          currency?: string
+          event_date: string
+          event_name: string
+          event_time?: string
+          forecast?: string | null
+          id?: string
+          impact?: string
+          previous?: string | null
+        }
+        Update: {
+          actual?: string | null
+          created_at?: string
+          currency?: string
+          event_date?: string
+          event_name?: string
+          event_time?: string
+          forecast?: string | null
+          id?: string
+          impact?: string
+          previous?: string | null
+        }
+        Relationships: []
+      }
       flip_simulations: {
         Row: {
           account_size: number
