@@ -41,6 +41,8 @@ const ForexCalendar = () => {
   const [loading, setLoading] = useState(false);
   const [rawMarkdown, setRawMarkdown] = useState<string>("");
   const [showRaw, setShowRaw] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -48,9 +50,25 @@ const ForexCalendar = () => {
 
   useEffect(() => {
     if (user) {
+      // Check if we need to sync (once per session or if no recent sync)
+      const lastSyncTime = sessionStorage.getItem('forex-calendar-last-sync');
+      const now = Date.now();
+      const oneHour = 60 * 60 * 1000;
+      
+      if (!lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
+        syncForexCalendar();
+      } else {
+        setLastSync(new Date(parseInt(lastSyncTime)).toLocaleTimeString());
+        fetchCalendarEvents();
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && !syncing) {
       fetchCalendarEvents();
     }
-  }, [selectedDate, user]);
+  }, [selectedDate]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -59,6 +77,33 @@ const ForexCalendar = () => {
       return;
     }
     setUser(user);
+  };
+
+  const syncForexCalendar = async () => {
+    setSyncing(true);
+    try {
+      toast.info("Sincronizando calendario con Forex Factory...");
+      
+      const { data, error } = await supabase.functions.invoke('sync-forex-calendar');
+      
+      if (error) {
+        console.error('Sync error:', error);
+        toast.error("Error al sincronizar. Usando datos guardados.");
+      } else if (data?.success) {
+        const now = Date.now();
+        sessionStorage.setItem('forex-calendar-last-sync', now.toString());
+        setLastSync(new Date(now).toLocaleTimeString());
+        toast.success(`Sincronizado: ${data.message}`);
+      } else {
+        toast.warning("No se pudieron obtener datos de Forex Factory");
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error("Error de sincronización");
+    } finally {
+      setSyncing(false);
+      fetchCalendarEvents();
+    }
   };
 
   const fetchCalendarEvents = async () => {
@@ -189,14 +234,20 @@ const ForexCalendar = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  size="icon" 
-                  onClick={fetchCalendarEvents}
-                  disabled={loading}
+                  onClick={syncForexCalendar}
+                  disabled={syncing}
+                  className="gap-2"
                 >
-                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                  <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+                  {syncing ? "Sincronizando..." : "Sincronizar"}
                 </Button>
               </div>
             </div>
+            {lastSync && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Última sincronización: {lastSync}
+              </p>
+            )}
           </CardContent>
         </Card>
 
