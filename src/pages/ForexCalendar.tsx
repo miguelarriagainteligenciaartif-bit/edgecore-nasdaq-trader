@@ -15,15 +15,16 @@ import {
   CalendarIcon, 
   ChevronLeft, 
   ChevronRight, 
-  RefreshCw, 
   AlertTriangle,
   TrendingUp,
   Clock,
   DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EventEditor, DeleteEventButton } from "@/components/EventEditor";
 
 interface ForexEvent {
+  id: string;
   time: string;
   currency: string;
   impact: 'high' | 'medium' | 'low';
@@ -39,10 +40,6 @@ const ForexCalendar = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [events, setEvents] = useState<ForexEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [rawMarkdown, setRawMarkdown] = useState<string>("");
-  const [showRaw, setShowRaw] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -50,25 +47,9 @@ const ForexCalendar = () => {
 
   useEffect(() => {
     if (user) {
-      // Check if we need to sync (once per session or if no recent sync)
-      const lastSyncTime = sessionStorage.getItem('forex-calendar-last-sync');
-      const now = Date.now();
-      const oneHour = 60 * 60 * 1000;
-      
-      if (!lastSyncTime || (now - parseInt(lastSyncTime)) > oneHour) {
-        syncForexCalendar();
-      } else {
-        setLastSync(new Date(parseInt(lastSyncTime)).toLocaleTimeString());
-        fetchCalendarEvents();
-      }
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user && !syncing) {
       fetchCalendarEvents();
     }
-  }, [selectedDate]);
+  }, [user, selectedDate]);
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -79,61 +60,51 @@ const ForexCalendar = () => {
     setUser(user);
   };
 
-  const syncForexCalendar = async () => {
-    setSyncing(true);
-    try {
-      toast.info("Sincronizando calendario con Forex Factory...");
-      
-      const { data, error } = await supabase.functions.invoke('sync-forex-calendar');
-      
-      if (error) {
-        console.error('Sync error:', error);
-        toast.error("Error al sincronizar. Usando datos guardados.");
-      } else if (data?.success) {
-        const now = Date.now();
-        sessionStorage.setItem('forex-calendar-last-sync', now.toString());
-        setLastSync(new Date(now).toLocaleTimeString());
-        toast.success(`Sincronizado: ${data.message}`);
-      } else {
-        toast.warning("No se pudieron obtener datos de Forex Factory");
-      }
-    } catch (error) {
-      console.error('Sync error:', error);
-      toast.error("Error de sincronización");
-    } finally {
-      setSyncing(false);
-      fetchCalendarEvents();
-    }
-  };
-
   const fetchCalendarEvents = async () => {
     setLoading(true);
     try {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
       
-      const { data, error } = await supabase.functions.invoke('forex-calendar', {
-        body: { date: formattedDate },
-      });
+      const { data, error } = await supabase
+        .from('economic_events')
+        .select('*')
+        .eq('event_date', formattedDate)
+        .eq('currency', 'USD')
+        .order('event_time', { ascending: true });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      if (data.success) {
-        setEvents(data.events || []);
-        setRawMarkdown(data.rawMarkdown || "");
-        if (data.events?.length === 0) {
-          toast.info("No se encontraron eventos USD para esta fecha");
-        }
-      } else {
-        throw new Error(data.error || "Error al obtener el calendario");
-      }
+      const formattedEvents: ForexEvent[] = (data || []).map(event => ({
+        id: event.id,
+        time: formatTime(event.event_time),
+        currency: event.currency,
+        impact: event.impact as 'high' | 'medium' | 'low',
+        event: event.event_name,
+        forecast: event.forecast || '-',
+        previous: event.previous || '-',
+        actual: event.actual || '-',
+      }));
+
+      setEvents(formattedEvents);
     } catch (error) {
       console.error("Error fetching calendar:", error);
       toast.error("Error al cargar el calendario económico");
       setEvents([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatTime = (timeStr: string): string => {
+    if (!timeStr) return "All Day";
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      const hour = parseInt(hours, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return `${hour12}:${minutes} ${ampm}`;
+    } catch {
+      return timeStr;
     }
   };
 
@@ -232,22 +203,13 @@ const ForexCalendar = () => {
                 <Button variant="outline" onClick={goToToday}>
                   Hoy
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={syncForexCalendar}
-                  disabled={syncing}
-                  className="gap-2"
-                >
-                  <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-                  {syncing ? "Sincronizando..." : "Sincronizar"}
-                </Button>
+                <EventEditor
+                  selectedDate={selectedDate}
+                  onSave={fetchCalendarEvents}
+                  mode="create"
+                />
               </div>
             </div>
-            {lastSync && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Última sincronización: {lastSync}
-              </p>
-            )}
           </CardContent>
         </Card>
 
@@ -284,9 +246,9 @@ const ForexCalendar = () => {
           </div>
         ) : events.length > 0 ? (
           <div className="space-y-3">
-            {events.map((event, index) => (
+            {events.map((event) => (
               <Card 
-                key={index} 
+                key={event.id} 
                 className={cn(
                   "transition-all hover:shadow-md",
                   event.impact === 'high' && "border-l-4 border-l-red-500"
@@ -323,6 +285,29 @@ const ForexCalendar = () => {
                         <span className="font-bold text-foreground">Act: {event.actual}</span>
                       )}
                     </div>
+
+                    <div className="flex items-center gap-1">
+                      <EventEditor
+                        event={{
+                          id: event.id,
+                          time: event.time,
+                          currency: event.currency,
+                          impact: event.impact,
+                          event: event.event,
+                          forecast: event.forecast,
+                          previous: event.previous,
+                          actual: event.actual,
+                        }}
+                        selectedDate={selectedDate}
+                        onSave={fetchCalendarEvents}
+                        mode="edit"
+                      />
+                      <DeleteEventButton
+                        eventId={event.id}
+                        eventName={event.event}
+                        onDelete={fetchCalendarEvents}
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -334,29 +319,13 @@ const ForexCalendar = () => {
               <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium">No hay eventos USD para esta fecha</h3>
               <p className="text-muted-foreground mt-2">
-                Intenta seleccionar otra fecha o verifica que el scraping haya funcionado correctamente.
+                Usa el botón "Agregar Evento" para añadir eventos económicos manualmente.
               </p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => setShowRaw(!showRaw)}
-              >
-                {showRaw ? "Ocultar" : "Ver"} datos raw
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Raw Data Debug */}
-        {showRaw && rawMarkdown && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-sm">Datos Raw (Debug)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre className="text-xs overflow-auto max-h-96 bg-muted p-4 rounded">
-                {rawMarkdown}
-              </pre>
+              <EventEditor
+                selectedDate={selectedDate}
+                onSave={fetchCalendarEvents}
+                mode="create"
+              />
             </CardContent>
           </Card>
         )}
@@ -372,8 +341,8 @@ const ForexCalendar = () => {
             </CardHeader>
             <CardContent>
               <div className="grid gap-2">
-                {events.filter(e => e.impact === 'high').map((event, index) => (
-                  <div key={index} className="flex items-center gap-3">
+                {events.filter(e => e.impact === 'high').map((event) => (
+                  <div key={event.id} className="flex items-center gap-3">
                     <Clock className="h-4 w-4 text-red-500" />
                     <span className="font-mono">{event.time}</span>
                     <span className="font-medium">{event.event}</span>
