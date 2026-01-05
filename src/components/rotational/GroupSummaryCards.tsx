@@ -25,6 +25,9 @@ export const GroupSummaryCards = ({ state }: GroupSummaryCardsProps) => {
   const totalPnL = totalBalance - totalInitial;
   const roi = totalInitial > 0 ? (totalPnL / totalInitial) * 100 : 0;
 
+  const totalProfitInclWithdrawals = totalPnL + state.totalWithdrawn;
+  const roiTotal = totalInitial > 0 ? (totalProfitInclWithdrawals / totalInitial) * 100 : 0;
+
   const stats = [
     {
       label: "Balance Total",
@@ -33,14 +36,16 @@ export const GroupSummaryCards = ({ state }: GroupSummaryCardsProps) => {
       color: "text-primary",
     },
     {
-      label: "P&L",
+      label: "P&L (actual)",
       value: `${totalPnL >= 0 ? '+' : ''}$${totalPnL.toLocaleString()}`,
+      subValue: `Con retiros: ${totalProfitInclWithdrawals >= 0 ? '+' : ''}$${totalProfitInclWithdrawals.toLocaleString()}`,
       icon: totalPnL >= 0 ? TrendingUp : TrendingDown,
       color: totalPnL >= 0 ? "text-emerald-500" : "text-red-500",
     },
     {
-      label: "ROI",
+      label: "ROI (actual)",
       value: `${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%`,
+      subValue: `Con retiros: ${roiTotal >= 0 ? '+' : ''}${roiTotal.toFixed(2)}%`,
       icon: Percent,
       color: roi >= 0 ? "text-emerald-500" : "text-red-500",
     },
