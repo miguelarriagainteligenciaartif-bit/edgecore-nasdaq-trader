@@ -7,6 +7,7 @@ import { GroupTradeHistory } from "@/components/rotational/GroupTradeHistory";
 import { WithdrawalProjection } from "@/components/rotational/WithdrawalProjection";
 import { SaveSimulationDialog } from "@/components/rotational/SaveSimulationDialog";
 import { LoadSimulationDialog } from "@/components/rotational/LoadSimulationDialog";
+import { GroupTradeSelector, TradeResult } from "@/components/rotational/GroupTradeSelector";
 import { Button } from "@/components/ui/button";
 import { 
   GroupRotationalConfig,
@@ -64,6 +65,22 @@ const FlipRotational = () => {
     if (!state) return;
     const newState = processGroupTrade(state, brokerType, result);
     setState(newState);
+  };
+
+  // Process multiple trades from selector
+  const handleBatchTrades = (trades: TradeResult[]) => {
+    if (!state) return;
+    
+    let currentState = state;
+    const brokerTypes = [...new Set(config.groups.map(g => g.brokerType))];
+    
+    trades.forEach((result, index) => {
+      // Alternate between broker types for each trade
+      const brokerType = brokerTypes[index % brokerTypes.length];
+      currentState = processGroupTrade(currentState, brokerType, result);
+    });
+    
+    setState(currentState);
   };
 
   const handleUndo = () => {
@@ -203,8 +220,9 @@ const FlipRotational = () => {
 
             {/* Tabs para diferentes vistas */}
             <Tabs defaultValue="simulation" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 max-w-md">
+              <TabsList className="grid w-full grid-cols-4 max-w-lg">
                 <TabsTrigger value="simulation">Simulación</TabsTrigger>
+                <TabsTrigger value="trades">Trades</TabsTrigger>
                 <TabsTrigger value="projection">Proyección</TabsTrigger>
                 <TabsTrigger value="history">Historial</TabsTrigger>
               </TabsList>
@@ -213,6 +231,13 @@ const FlipRotational = () => {
                 <GroupSimulationDisplay
                   state={state!}
                   onTradeResult={handleTradeResult}
+                />
+              </TabsContent>
+
+              <TabsContent value="trades" className="mt-4">
+                <GroupTradeSelector
+                  onTradesSelected={handleBatchTrades}
+                  disabled={false}
                 />
               </TabsContent>
               
