@@ -59,7 +59,7 @@ export const GroupSimulationDisplay = ({ state, onTradeResult }: GroupSimulation
                   <span className="font-medium">${summary.totalBalance.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">P&L</span>
+                  <span className="text-muted-foreground">P&L (actual)</span>
                   <span className={`font-medium ${isProfit ? 'text-emerald-500' : 'text-red-500'}`}>
                     {isProfit ? '+' : ''}{pnl.toLocaleString()} ({pnlPercent.toFixed(2)}%)
                   </span>
@@ -68,6 +68,12 @@ export const GroupSimulationDisplay = ({ state, onTradeResult }: GroupSimulation
                   <span className="text-muted-foreground">Retirado</span>
                   <span className="font-medium text-emerald-500">
                     ${summary.totalWithdrawn.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Profit total</span>
+                  <span className="font-medium">
+                    ${(pnl + summary.totalWithdrawn).toLocaleString()}
                   </span>
                 </div>
               </CardContent>

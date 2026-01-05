@@ -223,8 +223,29 @@ export const processUnifiedTrade = (
             currentBalance: affected.balanceAfter,
           };
           
-          // Check withdrawal target
-          if (checkWithdrawalTarget(newAccount, state.config.profitTargetPercent)) {
+          // Apply withdrawals rules
+          if (g.brokerType === 'cfd') {
+            // CFD: only withdraw once profit target % is reached
+            if (checkWithdrawalTarget(newAccount, state.config.profitTargetPercent)) {
+              const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
+              if (withdrawalAmount > 0) {
+                newAccount = {
+                  ...newAccount,
+                  currentBalance: newBalance,
+                  withdrawals: [
+                    ...newAccount.withdrawals,
+                    {
+                      date: new Date(),
+                      amount: withdrawalAmount,
+                      balanceBefore: affected.balanceAfter,
+                      balanceAfter: newBalance,
+                    },
+                  ],
+                };
+              }
+            }
+          } else {
+            // Futures: withdrawal depends ONLY on the configured threshold/amount
             const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
             if (withdrawalAmount > 0) {
               newAccount = {
