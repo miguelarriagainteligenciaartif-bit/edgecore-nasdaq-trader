@@ -24,6 +24,8 @@ export interface GroupConfig {
   brokerType: BrokerType;
   brokerName: string; // e.g., "FTMO", "Apex"
   accounts: AccountConfig[];
+  // Risk per trade in dollars (same for all accounts in this group)
+  riskPerTrade: number; // e.g., 375 for Futures, 800 for CFD
   // Futuros specific
   bufferRequired?: number; // Colchón requerido (ej: 2600 para Apex)
   trailingStopBuffer?: number; // Buffer donde se queda el trailing (ej: 100)
@@ -31,7 +33,6 @@ export interface GroupConfig {
 
 export interface GroupRotationalConfig {
   groups: GroupConfig[];
-  riskPercentage: number; // % de riesgo por trade
   riskRewardRatio: number;
   profitTargetPercent: number; // % objetivo para retiro
 }
@@ -109,9 +110,9 @@ export const initializeGroupState = (config: GroupRotationalConfig): GroupRotati
   };
 };
 
-// Calcular riesgo por trade basado en el balance de la cuenta
-const calculateRiskAmount = (balance: number, riskPercentage: number): number => {
-  return balance * (riskPercentage / 100);
+// Calculate risk amount based on group's fixed risk (same for all accounts in group)
+const calculateRiskAmount = (group: GroupConfig): number => {
+  return group.riskPerTrade;
 };
 
 // Procesar retiro según tipo de broker
@@ -167,21 +168,17 @@ export const processGroupTrade = (
   const groupIndex = state.groups.findIndex(g => g.id === groupsOfType[currentIndex % groupsOfType.length].id);
   const group = state.groups[groupIndex];
 
-  // Calcular riesgo basado en la primera cuenta del grupo (todas tienen el mismo trade)
-  const baseRisk = calculateRiskAmount(
-    group.accounts[0].currentBalance,
-    state.config.riskPercentage
-  );
+  // Risk is fixed per group (same for all accounts in this group)
+  const baseRisk = calculateRiskAmount(group);
   const profitLoss = result === 'TP' 
     ? baseRisk * state.config.riskRewardRatio 
     : -baseRisk;
 
-  // Aplicar resultado a todas las cuentas del grupo
+  // Apply result to all accounts in the group (same dollar amount for all)
   const accountsAffected = group.accounts.map(account => {
-    const accountRisk = calculateRiskAmount(account.currentBalance, state.config.riskPercentage);
     const accountPL = result === 'TP' 
-      ? accountRisk * state.config.riskRewardRatio 
-      : -accountRisk;
+      ? baseRisk * state.config.riskRewardRatio 
+      : -baseRisk;
     
     return {
       accountId: account.id,
@@ -402,6 +399,7 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         name: 'FTMO Grupo 1',
         brokerType: 'cfd',
         brokerName: 'FTMO',
+        riskPerTrade: 800, // $800 risk per trade in CFD
         accounts: [
           { id: generateId(), name: 'FTMO 100K #1', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [] },
           { id: generateId(), name: 'FTMO 100K #2', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [] },
@@ -412,6 +410,7 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         name: 'Apex Grupo 1',
         brokerType: 'futures',
         brokerName: 'Apex',
+        riskPerTrade: 375, // $375 risk per trade in Futures
         bufferRequired: 2600,
         trailingStopBuffer: 100,
         accounts: [
@@ -421,7 +420,6 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         ],
       },
     ],
-    riskPercentage: 0.8,
     riskRewardRatio: 2,
     profitTargetPercent: 10,
   };
