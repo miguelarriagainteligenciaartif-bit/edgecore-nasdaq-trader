@@ -126,6 +126,9 @@ const calculateRiskAmount = (group: GroupConfig): number => {
 // Mínimo de trades requeridos en Apex antes de poder retirar
 const MIN_TRADES_FOR_APEX_WITHDRAWAL = 8;
 
+// Trades por mes (aproximado - días de trading en un mes)
+const TRADES_PER_MONTH = 20;
+
 // Procesar retiro según tipo de broker
 const processWithdrawal = (
   account: AccountConfig,
@@ -238,10 +241,15 @@ export const processUnifiedTrade = (
           };
           
           // Apply withdrawals rules
+          // El número de trade actual (después de este trade)
+          const currentTradeNumber = state.trades.length + 1;
+          
           if (g.brokerType === 'cfd') {
-            // CFD (FTMO): Retira siempre que haya profit positivo
+            // CFD (FTMO): Retira solo al final de cada mes (cada 20 trades)
+            const isEndOfMonth = currentTradeNumber % TRADES_PER_MONTH === 0;
             const profit = newAccount.currentBalance - newAccount.initialBalance;
-            if (profit > 0) {
+            
+            if (isEndOfMonth && profit > 0) {
               const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
               if (withdrawalAmount > 0) {
                 newAccount = {
