@@ -1,35 +1,29 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
-import { RotationalConfigForm } from "@/components/rotational/RotationalConfigForm";
-import { RotationalAccountsDisplay } from "@/components/rotational/RotationalAccountsDisplay";
-import { RotationalTradeInput } from "@/components/rotational/RotationalTradeInput";
-import { RotationalTradeHistory } from "@/components/rotational/RotationalTradeHistory";
-import { RotationalSummary } from "@/components/rotational/RotationalSummary";
-import { TradeSelector } from "@/components/rotational/TradeSelector";
-import {
-  RotationalConfig,
-  RotationalState,
-  RotationalTradeResult,
-  initializeRotationalState,
-  processTrade,
-  processMultipleTrades,
-  undoLastTrade,
-} from "@/utils/rotationalSimulator";
+import { GroupConfigForm } from "@/components/rotational/GroupConfigForm";
+import { GroupSimulationDisplay } from "@/components/rotational/GroupSimulationDisplay";
+import { GroupSummaryCards } from "@/components/rotational/GroupSummaryCards";
+import { GroupTradeHistory } from "@/components/rotational/GroupTradeHistory";
+import { WithdrawalProjection } from "@/components/rotational/WithdrawalProjection";
+import { Button } from "@/components/ui/button";
+import { 
+  GroupRotationalConfig,
+  GroupRotationalState,
+  BrokerType,
+  createDefaultConfig,
+  initializeGroupState,
+  processGroupTrade,
+  undoGroupTrade,
+} from "@/utils/groupRotationalSimulator";
 import { supabase } from "@/integrations/supabase/client";
-import { Layers } from "lucide-react";
+import { Layers, Undo2, RotateCcw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const FlipRotational = () => {
   const [user, setUser] = useState<any>(null);
-  const [config, setConfig] = useState<RotationalConfig>({
-    numberOfAccounts: 4,
-    initialBalances: [50000, 50000, 50000, 50000],
-    riskPerTrade: 2500,
-    riskRewardRatio: 2,
-  });
-  const [state, setState] = useState<RotationalState | null>(null);
+  const [config, setConfig] = useState<GroupRotationalConfig>(createDefaultConfig());
+  const [state, setState] = useState<GroupRotationalState | null>(null);
   const [isSimulationActive, setIsSimulationActive] = useState(false);
-  const [simulationMode, setSimulationMode] = useState<"manual" | "real">("manual");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -46,34 +40,25 @@ const FlipRotational = () => {
   }, []);
 
   const handleStartSimulation = () => {
-    const initialState = initializeRotationalState(config);
+    const initialState = initializeGroupState(config);
     setState(initialState);
     setIsSimulationActive(true);
-    setSimulationMode("manual");
   };
 
-  const handleStartWithRealTrades = (results: RotationalTradeResult[]) => {
-    const initialState = initializeRotationalState(config);
-    const finalState = processMultipleTrades(initialState, results, config.riskPerTrade, config.riskRewardRatio);
-    setState(finalState);
-    setIsSimulationActive(true);
-    setSimulationMode("real");
-  };
-
-  const handleTradeResult = (result: "TP" | "SL") => {
+  const handleTradeResult = (brokerType: BrokerType, result: 'TP' | 'SL') => {
     if (!state) return;
-    const newState = processTrade(state, result, config.riskPerTrade, config.riskRewardRatio);
+    const newState = processGroupTrade(state, brokerType, result);
     setState(newState);
   };
 
   const handleUndo = () => {
     if (!state) return;
-    const newState = undoLastTrade(state);
+    const newState = undoGroupTrade(state);
     setState(newState);
   };
 
   const handleReset = () => {
-    const initialState = initializeRotationalState(config);
+    const initialState = initializeGroupState(config);
     setState(initialState);
   };
 
@@ -99,7 +84,7 @@ const FlipRotational = () => {
                 <span className="text-primary">ROTACIONAL</span>
               </h1>
               <p className="text-xs text-muted-foreground">
-                Simulador de Estrategia Rotacional Flexible
+                Simulador de Grupos de Cuentas con Replicador
               </p>
             </div>
           </div>
@@ -109,69 +94,71 @@ const FlipRotational = () => {
       {/* Content */}
       <div className="container mx-auto px-4 py-8 space-y-6">
         {!isSimulationActive ? (
-          <>
-            <RotationalConfigForm
-              config={config}
-              onConfigChange={setConfig}
-              onStart={handleStartSimulation}
-              isSimulationActive={isSimulationActive}
-            />
-
-            <Tabs defaultValue="real" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 max-w-md">
-                <TabsTrigger value="real">Usar Trades Reales</TabsTrigger>
-                <TabsTrigger value="manual">Simulación Manual</TabsTrigger>
-              </TabsList>
-              <TabsContent value="real" className="mt-4">
-                <TradeSelector
-                  onTradesSelected={handleStartWithRealTrades}
-                  isSimulationActive={isSimulationActive}
-                />
-              </TabsContent>
-              <TabsContent value="manual" className="mt-4">
-                <div className="text-center py-12 border border-dashed border-border/50 rounded-lg bg-card/30">
-                  <div className="text-muted-foreground space-y-2">
-                    <p className="text-lg">
-                      👆 Configura los parámetros y haz clic en "Iniciar Simulación"
-                    </p>
-                    <p className="text-sm">
-                      Ingresarás manualmente cada resultado (TP/SL)
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </>
+          <GroupConfigForm
+            config={config}
+            onConfigChange={setConfig}
+            onStart={handleStartSimulation}
+            isSimulationActive={isSimulationActive}
+          />
         ) : (
           <>
-            <div className="flex justify-end">
-              <button
+            {/* Controles superiores */}
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUndo}
+                  disabled={state?.trades.length === 0}
+                >
+                  <Undo2 className="h-4 w-4 mr-1" />
+                  Deshacer
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReset}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Reiniciar
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleNewSimulation}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors underline"
+                className="text-muted-foreground"
               >
                 ← Nueva simulación
-              </button>
+              </Button>
             </div>
 
-            <RotationalSummary
-              state={state!}
-              initialBalances={config.initialBalances}
-            />
+            {/* Resumen */}
+            <GroupSummaryCards state={state!} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RotationalTradeInput
-                state={state!}
-                onTradeResult={handleTradeResult}
-                onUndo={handleUndo}
-                onReset={handleReset}
-              />
-              <RotationalAccountsDisplay
-                state={state!}
-                initialBalances={config.initialBalances}
-              />
-            </div>
-
-            <RotationalTradeHistory trades={state!.trades} />
+            {/* Tabs para diferentes vistas */}
+            <Tabs defaultValue="simulation" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 max-w-md">
+                <TabsTrigger value="simulation">Simulación</TabsTrigger>
+                <TabsTrigger value="projection">Proyección</TabsTrigger>
+                <TabsTrigger value="history">Historial</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="simulation" className="mt-4">
+                <GroupSimulationDisplay
+                  state={state!}
+                  onTradeResult={handleTradeResult}
+                />
+              </TabsContent>
+              
+              <TabsContent value="projection" className="mt-4">
+                <WithdrawalProjection state={state!} />
+              </TabsContent>
+              
+              <TabsContent value="history" className="mt-4">
+                <GroupTradeHistory trades={state!.trades} />
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>
