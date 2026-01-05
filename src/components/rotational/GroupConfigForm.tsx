@@ -96,6 +96,7 @@ export const GroupConfigForm = ({
       currentBalance: defaultBalance,
       profitTarget: config.profitTargetPercent,
       withdrawals: [],
+      tradesSinceLastWithdrawal: 0,
     };
 
     updateGroup(groupId, {
