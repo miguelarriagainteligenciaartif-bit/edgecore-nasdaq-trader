@@ -12,19 +12,24 @@ import {
 } from "lucide-react";
 import { 
   GroupRotationalState,
-  GroupConfig,
-  BrokerType,
   getBrokerSummary
 } from "@/utils/groupRotationalSimulator";
 
 interface GroupSimulationDisplayProps {
   state: GroupRotationalState;
-  onTradeResult: (brokerType: BrokerType, result: 'TP' | 'SL') => void;
+  onTradeResult: (result: 'TP' | 'SL') => void;
 }
 
 export const GroupSimulationDisplay = ({ state, onTradeResult }: GroupSimulationDisplayProps) => {
   const brokerSummary = getBrokerSummary(state);
-  const brokerTypes = [...new Set(state.groups.map(g => g.brokerType))];
+  const cfdGroups = state.groups.filter(g => g.brokerType === 'cfd');
+  const futuresGroups = state.groups.filter(g => g.brokerType === 'futures');
+  
+  // Get current turn for each broker type
+  const cfdCurrentIndex = state.currentTurnByBroker['cfd'] || 0;
+  const futuresCurrentIndex = state.currentTurnByBroker['futures'] || 0;
+  const currentCfdGroup = cfdGroups[cfdCurrentIndex % cfdGroups.length];
+  const currentFuturesGroup = futuresGroups[futuresCurrentIndex % futuresGroups.length];
 
   return (
     <div className="space-y-6">
@@ -71,71 +76,97 @@ export const GroupSimulationDisplay = ({ state, onTradeResult }: GroupSimulation
         })}
       </div>
 
-      {/* Controles de Trading por Broker */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {brokerTypes.map(brokerType => {
-          const groupsOfType = state.groups.filter(g => g.brokerType === brokerType);
-          const currentIndex = state.currentTurnByBroker[brokerType] || 0;
-          const currentGroup = groupsOfType[currentIndex % groupsOfType.length];
-          
-          if (!currentGroup) return null;
-
-          const colorClass = brokerType === 'cfd' ? 'border-blue-500' : 'border-amber-500';
-          const bgClass = brokerType === 'cfd' ? 'bg-blue-500/10' : 'bg-amber-500/10';
-
-          return (
-            <Card key={brokerType} className={`border-2 ${colorClass}`}>
-              <CardHeader className={`pb-3 ${bgClass}`}>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  Siguiente Trade: {brokerType.toUpperCase()}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-primary" />
-                  <span className="font-medium">{currentGroup.name}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {currentGroup.accounts.length} cuentas
+      {/* Control de Trading UNIFICADO - Un trade aplica a CFD y Futuros */}
+      <Card className="border-2 border-primary/50">
+        <CardHeader className="pb-3 bg-primary/10">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Siguiente Trade (aplica a CFD + Futuros)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          {/* Show which groups will be affected */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {/* CFD Turn */}
+            {currentCfdGroup && (
+              <div className="p-3 rounded-lg border border-blue-500/30 bg-blue-500/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="font-medium">CFD: {currentCfdGroup.name}</span>
+                  <Badge variant="outline" className="text-xs ml-auto">
+                    ${currentCfdGroup.riskPerTrade}/trade
                   </Badge>
                 </div>
-
                 <div className="text-xs text-muted-foreground space-y-1">
-                  {currentGroup.accounts.map(account => (
+                  {currentCfdGroup.accounts.slice(0, 3).map(account => (
                     <div key={account.id} className="flex justify-between">
                       <span>{account.name}</span>
                       <span>${account.currentBalance.toLocaleString()}</span>
                     </div>
                   ))}
+                  {currentCfdGroup.accounts.length > 3 && (
+                    <div className="text-muted-foreground">
+                      +{currentCfdGroup.accounts.length - 3} más...
+                    </div>
+                  )}
                 </div>
+              </div>
+            )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className="h-16 border-emerald-500/50 hover:bg-emerald-500/20 hover:border-emerald-500"
-                    onClick={() => onTradeResult(brokerType, 'TP')}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <TrendingUp className="h-5 w-5 text-emerald-500" />
-                      <span className="text-sm font-medium">TP</span>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-16 border-red-500/50 hover:bg-red-500/20 hover:border-red-500"
-                    onClick={() => onTradeResult(brokerType, 'SL')}
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <TrendingDown className="h-5 w-5 text-red-500" />
-                      <span className="text-sm font-medium">SL</span>
-                    </div>
-                  </Button>
+            {/* Futures Turn */}
+            {currentFuturesGroup && (
+              <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="font-medium">Futuros: {currentFuturesGroup.name}</span>
+                  <Badge variant="outline" className="text-xs ml-auto">
+                    ${currentFuturesGroup.riskPerTrade}/trade
+                  </Badge>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  {currentFuturesGroup.accounts.slice(0, 3).map(account => (
+                    <div key={account.id} className="flex justify-between">
+                      <span>{account.name}</span>
+                      <span>${account.currentBalance.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  {currentFuturesGroup.accounts.length > 3 && (
+                    <div className="text-muted-foreground">
+                      +{currentFuturesGroup.accounts.length - 3} más...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Unified TP/SL Buttons */}
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              variant="outline"
+              className="h-20 border-emerald-500/50 hover:bg-emerald-500/20 hover:border-emerald-500"
+              onClick={() => onTradeResult('TP')}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <TrendingUp className="h-6 w-6 text-emerald-500" />
+                <span className="text-lg font-bold">TP</span>
+                <span className="text-xs text-muted-foreground">Take Profit</span>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 border-red-500/50 hover:bg-red-500/20 hover:border-red-500"
+              onClick={() => onTradeResult('SL')}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <TrendingDown className="h-6 w-6 text-red-500" />
+                <span className="text-lg font-bold">SL</span>
+                <span className="text-xs text-muted-foreground">Stop Loss</span>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Estado de Todos los Grupos */}
       <Card className="bg-card/30">
