@@ -97,6 +97,7 @@ export const GroupConfigForm = ({
       profitTarget: config.profitTargetPercent,
       withdrawals: [],
       tradesSinceLastWithdrawal: 0,
+      tradesInCurrentMonth: 0,
     };
 
     updateGroup(groupId, {

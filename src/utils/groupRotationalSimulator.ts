@@ -10,6 +10,7 @@ export interface AccountConfig {
   profitTarget: number; // % de profit para retiro
   withdrawals: Withdrawal[];
   tradesSinceLastWithdrawal: number; // Contador de trades desde último retiro (para Apex)
+  tradesInCurrentMonth: number; // Contador de trades en el mes actual (para FTMO)
 }
 
 export interface Withdrawal {
@@ -106,6 +107,7 @@ export const initializeGroupState = (config: GroupRotationalConfig): GroupRotati
         currentBalance: a.initialBalance,
         withdrawals: [],
         tradesSinceLastWithdrawal: 0, // Empieza en 0, necesita 8 trades antes de poder retirar
+        tradesInCurrentMonth: 0, // Contador para FTMO - retiro al final del mes
       })),
     })),
     currentTurnByBroker,
@@ -238,15 +240,14 @@ export const processUnifiedTrade = (
             currentBalance: affected.balanceAfter,
             // Incrementar contador de trades (para Apex)
             tradesSinceLastWithdrawal: (account.tradesSinceLastWithdrawal || 0) + 1,
+            // Incrementar contador de trades del mes actual (para FTMO)
+            tradesInCurrentMonth: (account.tradesInCurrentMonth || 0) + 1,
           };
           
           // Apply withdrawals rules
-          // El número de trade actual (después de este trade)
-          const currentTradeNumber = state.trades.length + 1;
-          
           if (g.brokerType === 'cfd') {
-            // CFD (FTMO): Retira solo al final de cada mes (cada 20 trades)
-            const isEndOfMonth = currentTradeNumber % TRADES_PER_MONTH === 0;
+            // CFD (FTMO): Retira al final de cada mes (cada 20 trades por cuenta)
+            const isEndOfMonth = newAccount.tradesInCurrentMonth >= TRADES_PER_MONTH;
             const profit = newAccount.currentBalance - newAccount.initialBalance;
             
             if (isEndOfMonth && profit > 0) {
@@ -255,6 +256,7 @@ export const processUnifiedTrade = (
                 newAccount = {
                   ...newAccount,
                   currentBalance: newBalance,
+                  tradesInCurrentMonth: 0, // Reset contador del mes
                   withdrawals: [
                     ...newAccount.withdrawals,
                     {
@@ -266,6 +268,12 @@ export const processUnifiedTrade = (
                   ],
                 };
               }
+            } else if (isEndOfMonth) {
+              // Si es fin de mes pero no hay profit, igual reseteamos el contador
+              newAccount = {
+                ...newAccount,
+                tradesInCurrentMonth: 0,
+              };
             }
           } else {
             // Futures (Apex): withdrawal depends on threshold AND minimum 8 trades
@@ -473,8 +481,8 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         brokerName: 'FTMO',
         riskPerTrade: 800, // $800 risk per trade in CFD
         accounts: [
-          { id: generateId(), name: 'FTMO 100K #1', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
-          { id: generateId(), name: 'FTMO 100K #2', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
+          { id: generateId(), name: 'FTMO 100K #1', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0, tradesInCurrentMonth: 0 },
+          { id: generateId(), name: 'FTMO 100K #2', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0, tradesInCurrentMonth: 0 },
         ],
       },
       {
@@ -486,9 +494,9 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         withdrawalThreshold: 54100, // When balance reaches this, withdraw
         withdrawalAmount: 2000, // Amount to withdraw
         accounts: [
-          { id: generateId(), name: 'Apex 50K #1', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
-          { id: generateId(), name: 'Apex 50K #2', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
-          { id: generateId(), name: 'Apex 50K #3', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
+          { id: generateId(), name: 'Apex 50K #1', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0, tradesInCurrentMonth: 0 },
+          { id: generateId(), name: 'Apex 50K #2', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0, tradesInCurrentMonth: 0 },
+          { id: generateId(), name: 'Apex 50K #3', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0, tradesInCurrentMonth: 0 },
         ],
       },
     ],
