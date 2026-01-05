@@ -9,6 +9,7 @@ export interface AccountConfig {
   currentBalance: number;
   profitTarget: number; // % de profit para retiro
   withdrawals: Withdrawal[];
+  tradesSinceLastWithdrawal: number; // Contador de trades desde último retiro (para Apex)
 }
 
 export interface Withdrawal {
@@ -104,6 +105,7 @@ export const initializeGroupState = (config: GroupRotationalConfig): GroupRotati
         ...a,
         currentBalance: a.initialBalance,
         withdrawals: [],
+        tradesSinceLastWithdrawal: 0, // Empieza en 0, necesita 8 trades antes de poder retirar
       })),
     })),
     currentTurnByBroker,
@@ -121,11 +123,14 @@ const calculateRiskAmount = (group: GroupConfig): number => {
   return group.riskPerTrade;
 };
 
+// Mínimo de trades requeridos en Apex antes de poder retirar
+const MIN_TRADES_FOR_APEX_WITHDRAWAL = 8;
+
 // Procesar retiro según tipo de broker
 const processWithdrawal = (
   account: AccountConfig,
   group: GroupConfig
-): { newBalance: number; withdrawalAmount: number } => {
+): { newBalance: number; withdrawalAmount: number; canWithdraw: boolean } => {
   const profit = account.currentBalance - account.initialBalance;
   
   if (group.brokerType === 'cfd') {
@@ -133,9 +138,15 @@ const processWithdrawal = (
     return {
       newBalance: account.initialBalance,
       withdrawalAmount: profit,
+      canWithdraw: true,
     };
   } else {
-    // Futuros: Retiro simple - cuando llega al umbral, retira cantidad fija
+    // Futuros (Apex): Necesita mínimo 8 trades antes de poder retirar
+    if (account.tradesSinceLastWithdrawal < MIN_TRADES_FOR_APEX_WITHDRAWAL) {
+      return { newBalance: account.currentBalance, withdrawalAmount: 0, canWithdraw: false };
+    }
+    
+    // Futuros: Retiro simple - cuando llega al umbral y tiene 8+ trades, retira cantidad fija
     const threshold = group.withdrawalThreshold || (account.initialBalance + 4100); // Default: initial + 4100
     const withdrawAmount = group.withdrawalAmount || 2000; // Default: $2000
     
@@ -143,9 +154,10 @@ const processWithdrawal = (
       return {
         newBalance: account.currentBalance - withdrawAmount,
         withdrawalAmount: withdrawAmount,
+        canWithdraw: true,
       };
     }
-    return { newBalance: account.currentBalance, withdrawalAmount: 0 };
+    return { newBalance: account.currentBalance, withdrawalAmount: 0, canWithdraw: false };
   }
 };
 
@@ -221,6 +233,8 @@ export const processUnifiedTrade = (
           let newAccount = {
             ...account,
             currentBalance: affected.balanceAfter,
+            // Incrementar contador de trades (para Apex)
+            tradesSinceLastWithdrawal: (account.tradesSinceLastWithdrawal || 0) + 1,
           };
           
           // Apply withdrawals rules
@@ -246,12 +260,13 @@ export const processUnifiedTrade = (
               }
             }
           } else {
-            // Futures: withdrawal depends ONLY on the configured threshold/amount
+            // Futures (Apex): withdrawal depends on threshold AND minimum 8 trades
             const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
             if (withdrawalAmount > 0) {
               newAccount = {
                 ...newAccount,
                 currentBalance: newBalance,
+                tradesSinceLastWithdrawal: 0, // Reset contador después de retiro
                 withdrawals: [
                   ...newAccount.withdrawals,
                   {
@@ -450,8 +465,8 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         brokerName: 'FTMO',
         riskPerTrade: 800, // $800 risk per trade in CFD
         accounts: [
-          { id: generateId(), name: 'FTMO 100K #1', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [] },
-          { id: generateId(), name: 'FTMO 100K #2', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [] },
+          { id: generateId(), name: 'FTMO 100K #1', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
+          { id: generateId(), name: 'FTMO 100K #2', initialBalance: 100000, currentBalance: 100000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
         ],
       },
       {
@@ -463,9 +478,9 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         withdrawalThreshold: 54100, // When balance reaches this, withdraw
         withdrawalAmount: 2000, // Amount to withdraw
         accounts: [
-          { id: generateId(), name: 'Apex 50K #1', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [] },
-          { id: generateId(), name: 'Apex 50K #2', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [] },
-          { id: generateId(), name: 'Apex 50K #3', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [] },
+          { id: generateId(), name: 'Apex 50K #1', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
+          { id: generateId(), name: 'Apex 50K #2', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
+          { id: generateId(), name: 'Apex 50K #3', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [], tradesSinceLastWithdrawal: 0 },
         ],
       },
     ],
