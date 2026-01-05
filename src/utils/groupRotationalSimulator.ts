@@ -37,11 +37,10 @@ export interface GroupRotationalConfig {
   profitTargetPercent: number; // % objetivo para retiro
 }
 
-export interface GroupTrade {
-  tradeNumber: number;
+export interface GroupTradeEffect {
   groupId: string;
   groupName: string;
-  result: 'TP' | 'SL';
+  brokerType: BrokerType;
   riskAmount: number;
   profitLoss: number;
   accountsAffected: {
@@ -50,6 +49,13 @@ export interface GroupTrade {
     balanceBefore: number;
     balanceAfter: number;
   }[];
+}
+
+export interface GroupTrade {
+  tradeNumber: number; // Número único de la operación (1 trade = 1 día)
+  result: 'TP' | 'SL';
+  effects: GroupTradeEffect[]; // Efectos en cada grupo (CFD + Futuros)
+  totalProfitLoss: number;
   timestamp: Date;
 }
 
@@ -152,108 +158,123 @@ const checkWithdrawalTarget = (
   return profitPercent >= profitTargetPercent;
 };
 
-// Procesar un trade para un grupo
-export const processGroupTrade = (
+// Procesar un trade UNIFICADO (aplica a todos los grupos activos - CFD + Futuros)
+export const processUnifiedTrade = (
   state: GroupRotationalState,
-  brokerType: BrokerType,
   result: 'TP' | 'SL'
 ): GroupRotationalState => {
-  const groupsOfType = state.groups.filter(g => g.brokerType === brokerType);
-  if (groupsOfType.length === 0) return state;
-
-  const currentIndex = state.currentTurnByBroker[brokerType] || 0;
-  const groupIndex = state.groups.findIndex(g => g.id === groupsOfType[currentIndex % groupsOfType.length].id);
-  const group = state.groups[groupIndex];
-
-  // Risk is fixed per group (same for all accounts in this group)
-  const baseRisk = calculateRiskAmount(group);
-  const profitLoss = result === 'TP' 
-    ? baseRisk * state.config.riskRewardRatio 
-    : -baseRisk;
-
-  // Apply result to all accounts in the group (same dollar amount for all)
-  const accountsAffected = group.accounts.map(account => {
-    const accountPL = result === 'TP' 
+  const effects: GroupTradeEffect[] = [];
+  let newGroups = [...state.groups];
+  const newCurrentTurnByBroker = { ...state.currentTurnByBroker };
+  
+  // Process each broker type
+  const brokerTypes: BrokerType[] = ['cfd', 'futures'];
+  
+  for (const brokerType of brokerTypes) {
+    const groupsOfType = state.groups.filter(g => g.brokerType === brokerType);
+    if (groupsOfType.length === 0) continue;
+    
+    const currentIndex = state.currentTurnByBroker[brokerType] || 0;
+    const groupIndex = state.groups.findIndex(g => g.id === groupsOfType[currentIndex % groupsOfType.length].id);
+    const group = state.groups[groupIndex];
+    
+    // Risk is fixed per group
+    const baseRisk = calculateRiskAmount(group);
+    const profitLoss = result === 'TP' 
       ? baseRisk * state.config.riskRewardRatio 
       : -baseRisk;
     
-    return {
-      accountId: account.id,
-      accountName: account.name,
-      balanceBefore: account.currentBalance,
-      balanceAfter: account.currentBalance + accountPL,
-    };
-  });
-
-  // Crear nuevo trade
+    // Apply result to all accounts in the group
+    const accountsAffected = group.accounts.map(account => {
+      const accountPL = result === 'TP' 
+        ? baseRisk * state.config.riskRewardRatio 
+        : -baseRisk;
+      
+      return {
+        accountId: account.id,
+        accountName: account.name,
+        balanceBefore: account.currentBalance,
+        balanceAfter: account.currentBalance + accountPL,
+      };
+    });
+    
+    // Add effect for this group
+    effects.push({
+      groupId: group.id,
+      groupName: group.name,
+      brokerType: group.brokerType,
+      riskAmount: baseRisk,
+      profitLoss,
+      accountsAffected,
+    });
+    
+    // Update account balances for this group
+    newGroups = newGroups.map((g, idx) => {
+      if (idx !== groupIndex) return g;
+      
+      return {
+        ...g,
+        accounts: g.accounts.map(account => {
+          const affected = accountsAffected.find(a => a.accountId === account.id);
+          if (!affected) return account;
+          
+          let newAccount = {
+            ...account,
+            currentBalance: affected.balanceAfter,
+          };
+          
+          // Check withdrawal target
+          if (checkWithdrawalTarget(newAccount, state.config.profitTargetPercent)) {
+            const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
+            if (withdrawalAmount > 0) {
+              newAccount = {
+                ...newAccount,
+                currentBalance: newBalance,
+                withdrawals: [
+                  ...newAccount.withdrawals,
+                  {
+                    date: new Date(),
+                    amount: withdrawalAmount,
+                    balanceBefore: affected.balanceAfter,
+                    balanceAfter: newBalance,
+                  },
+                ],
+              };
+            }
+          }
+          
+          return newAccount;
+        }),
+      };
+    });
+    
+    // Update turn for this broker type
+    newCurrentTurnByBroker[brokerType] = (currentIndex + 1) % groupsOfType.length;
+  }
+  
+  // Calculate total P&L for this trade
+  const totalProfitLoss = effects.reduce((sum, e) => sum + e.profitLoss, 0);
+  
+  // Create unified trade record
   const newTrade: GroupTrade = {
     tradeNumber: state.trades.length + 1,
-    groupId: group.id,
-    groupName: group.name,
     result,
-    riskAmount: baseRisk,
-    profitLoss,
-    accountsAffected,
+    effects,
+    totalProfitLoss,
     timestamp: new Date(),
   };
-
-  // Actualizar balances de las cuentas
-  const newGroups = state.groups.map((g, idx) => {
-    if (idx !== groupIndex) return g;
-    
-    return {
-      ...g,
-      accounts: g.accounts.map(account => {
-        const affected = accountsAffected.find(a => a.accountId === account.id);
-        if (!affected) return account;
-        
-        let newAccount = {
-          ...account,
-          currentBalance: affected.balanceAfter,
-        };
-
-        // Verificar si alcanzó objetivo de retiro
-        if (checkWithdrawalTarget(newAccount, state.config.profitTargetPercent)) {
-          const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
-          if (withdrawalAmount > 0) {
-            newAccount = {
-              ...newAccount,
-              currentBalance: newBalance,
-              withdrawals: [
-                ...newAccount.withdrawals,
-                {
-                  date: new Date(),
-                  amount: withdrawalAmount,
-                  balanceBefore: affected.balanceAfter,
-                  balanceAfter: newBalance,
-                },
-              ],
-            };
-          }
-        }
-
-        return newAccount;
-      }),
-    };
-  });
-
-  // Actualizar turno del broker
-  const newCurrentTurnByBroker = {
-    ...state.currentTurnByBroker,
-    [brokerType]: (currentIndex + 1) % groupsOfType.length,
-  };
-
-  // Calcular estadísticas
+  
+  // Calculate stats
   const totalTP = result === 'TP' ? state.totalTP + 1 : state.totalTP;
   const totalSL = result === 'SL' ? state.totalSL + 1 : state.totalSL;
   const totalTrades = totalTP + totalSL;
   const winRate = totalTrades > 0 ? (totalTP / totalTrades) * 100 : 0;
-
-  // Calcular total retirado
+  
+  // Calculate total withdrawn
   const totalWithdrawn = newGroups.reduce((sum, g) => 
     sum + g.accounts.reduce((accSum, acc) => 
       accSum + acc.withdrawals.reduce((wSum, w) => wSum + w.amount, 0), 0), 0);
-
+  
   return {
     ...state,
     groups: newGroups,
@@ -266,53 +287,66 @@ export const processGroupTrade = (
   };
 };
 
-// Deshacer último trade
+// Legacy function - now calls unified trade (kept for compatibility)
+export const processGroupTrade = (
+  state: GroupRotationalState,
+  _brokerType: BrokerType,
+  result: 'TP' | 'SL'
+): GroupRotationalState => {
+  // Only process once per trade - ignore broker type since we process all together
+  return processUnifiedTrade(state, result);
+};
+
+// Deshacer último trade (unified - reverts all effects)
 export const undoGroupTrade = (state: GroupRotationalState): GroupRotationalState => {
   if (state.trades.length === 0) return state;
 
   const lastTrade = state.trades[state.trades.length - 1];
-  const groupIndex = state.groups.findIndex(g => g.id === lastTrade.groupId);
+  const newCurrentTurnByBroker = { ...state.currentTurnByBroker };
   
-  // Restaurar balances
-  const newGroups = state.groups.map((g, idx) => {
-    if (idx !== groupIndex) return g;
+  // Restore balances for all affected groups
+  let newGroups = [...state.groups];
+  
+  for (const effect of lastTrade.effects) {
+    const groupIndex = state.groups.findIndex(g => g.id === effect.groupId);
+    if (groupIndex === -1) continue;
     
-    return {
-      ...g,
-      accounts: g.accounts.map(account => {
-        const affected = lastTrade.accountsAffected.find(a => a.accountId === account.id);
-        if (!affected) return account;
-        
-        // También revertir cualquier retiro que se haya hecho
-        const lastWithdrawal = account.withdrawals[account.withdrawals.length - 1];
-        if (lastWithdrawal && lastWithdrawal.balanceBefore === affected.balanceAfter) {
+    newGroups = newGroups.map((g, idx) => {
+      if (idx !== groupIndex) return g;
+      
+      return {
+        ...g,
+        accounts: g.accounts.map(account => {
+          const affected = effect.accountsAffected.find(a => a.accountId === account.id);
+          if (!affected) return account;
+          
+          // Also revert any withdrawal that was made
+          const lastWithdrawal = account.withdrawals[account.withdrawals.length - 1];
+          if (lastWithdrawal && lastWithdrawal.balanceBefore === affected.balanceAfter) {
+            return {
+              ...account,
+              currentBalance: affected.balanceBefore,
+              withdrawals: account.withdrawals.slice(0, -1),
+            };
+          }
+          
           return {
             ...account,
             currentBalance: affected.balanceBefore,
-            withdrawals: account.withdrawals.slice(0, -1),
           };
-        }
-        
-        return {
-          ...account,
-          currentBalance: affected.balanceBefore,
-        };
-      }),
-    };
-  });
+        }),
+      };
+    });
+    
+    // Revert turn for this broker type
+    const brokerType = effect.brokerType;
+    const groupsOfType = state.groups.filter(g => g.brokerType === brokerType);
+    const currentIndex = state.currentTurnByBroker[brokerType] || 0;
+    const newIndex = currentIndex === 0 ? groupsOfType.length - 1 : currentIndex - 1;
+    newCurrentTurnByBroker[brokerType] = newIndex;
+  }
 
-  // Revertir turno del broker
-  const brokerType = state.groups[groupIndex].brokerType;
-  const groupsOfType = state.groups.filter(g => g.brokerType === brokerType);
-  const currentIndex = state.currentTurnByBroker[brokerType] || 0;
-  const newIndex = currentIndex === 0 ? groupsOfType.length - 1 : currentIndex - 1;
-
-  const newCurrentTurnByBroker = {
-    ...state.currentTurnByBroker,
-    [brokerType]: newIndex,
-  };
-
-  // Recalcular estadísticas
+  // Recalculate stats
   const totalTP = lastTrade.result === 'TP' ? state.totalTP - 1 : state.totalTP;
   const totalSL = lastTrade.result === 'SL' ? state.totalSL - 1 : state.totalSL;
   const totalTrades = totalTP + totalSL;
@@ -341,47 +375,43 @@ export const projectWithdrawals = (
   tradesToProject: number
 ): ProjectedWithdrawal[] => {
   const projections: ProjectedWithdrawal[] = [];
-  let simulatedState = { ...state };
+  let simulatedState = { ...state, groups: state.groups.map(g => ({ ...g, accounts: g.accounts.map(a => ({ ...a, withdrawals: [...a.withdrawals] })) })) };
 
   for (let i = 0; i < tradesToProject; i++) {
-    // Simular trades para cada tipo de broker
-    const brokerTypes = [...new Set(state.groups.map(g => g.brokerType))];
+    const result = Math.random() * 100 < expectedWinRate ? 'TP' : 'SL';
     
-    for (const brokerType of brokerTypes) {
-      const result = Math.random() * 100 < expectedWinRate ? 'TP' : 'SL';
+    // Save balances before for all groups
+    const balancesBefore: { groupId: string; accounts: { id: string; balance: number; withdrawalsCount: number }[] }[] = 
+      simulatedState.groups.map(g => ({
+        groupId: g.id,
+        accounts: g.accounts.map(a => ({ id: a.id, balance: a.currentBalance, withdrawalsCount: a.withdrawals.length }))
+      }));
+    
+    // Process unified trade
+    simulatedState = processUnifiedTrade(simulatedState, result);
+    
+    // Check for new withdrawals in any group
+    simulatedState.groups.forEach((group) => {
+      const beforeGroup = balancesBefore.find(b => b.groupId === group.id);
+      if (!beforeGroup) return;
       
-      // Guardar balances antes
-      const groupsOfType = simulatedState.groups.filter(g => g.brokerType === brokerType);
-      const currentIndex = simulatedState.currentTurnByBroker[brokerType] || 0;
-      const group = groupsOfType[currentIndex % groupsOfType.length];
-      
-      if (group) {
-        const balancesBefore = group.accounts.map(a => ({ id: a.id, balance: a.currentBalance }));
-        
-        simulatedState = processGroupTrade(simulatedState, brokerType, result);
-        
-        // Verificar si hubo retiros
-        const updatedGroup = simulatedState.groups.find(g => g.id === group.id);
-        if (updatedGroup) {
-          updatedGroup.accounts.forEach((account, idx) => {
-            const before = balancesBefore.find(b => b.id === account.id);
-            if (before && account.withdrawals.length > group.accounts[idx].withdrawals.length) {
-              const lastWithdrawal = account.withdrawals[account.withdrawals.length - 1];
-              projections.push({
-                groupId: group.id,
-                groupName: group.name,
-                accountId: account.id,
-                accountName: account.name,
-                projectedDate: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
-                projectedTradeNumber: state.trades.length + i + 1,
-                withdrawalAmount: lastWithdrawal.amount,
-                balanceAfterWithdrawal: lastWithdrawal.balanceAfter,
-              });
-            }
+      group.accounts.forEach((account) => {
+        const beforeAccount = beforeGroup.accounts.find(a => a.id === account.id);
+        if (beforeAccount && account.withdrawals.length > beforeAccount.withdrawalsCount) {
+          const lastWithdrawal = account.withdrawals[account.withdrawals.length - 1];
+          projections.push({
+            groupId: group.id,
+            groupName: group.name,
+            accountId: account.id,
+            accountName: account.name,
+            projectedDate: new Date(Date.now() + i * 24 * 60 * 60 * 1000),
+            projectedTradeNumber: state.trades.length + i + 1,
+            withdrawalAmount: lastWithdrawal.amount,
+            balanceAfterWithdrawal: lastWithdrawal.balanceAfter,
           });
         }
-      }
-    }
+      });
+    });
   }
 
   return projections;

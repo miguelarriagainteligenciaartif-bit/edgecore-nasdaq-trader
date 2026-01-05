@@ -17,7 +17,7 @@ import {
   GroupRotationalState,
   createDefaultConfig,
   initializeGroupState,
-  processGroupTrade,
+  processUnifiedTrade,
   undoGroupTrade,
 } from "@/utils/groupRotationalSimulator";
 import { useGroupRotationalSimulations, SavedGroupSimulation } from "@/hooks/useGroupRotationalSimulations";
@@ -76,19 +76,10 @@ const FlipRotational = () => {
     setMainTab("simulation");
   };
 
-  // Process trade for BOTH brokers simultaneously (same result applies to CFD and Futures)
+  // Process unified trade - same result applies to ALL groups (CFD + Futures)
   const handleTradeResult = (result: 'TP' | 'SL') => {
     if (!state) return;
-    let newState = state;
-    
-    // Apply to CFD first, then Futures (same result for both)
-    if (cfdGroups.length > 0) {
-      newState = processGroupTrade(newState, 'cfd', result);
-    }
-    if (futuresGroups.length > 0) {
-      newState = processGroupTrade(newState, 'futures', result);
-    }
-    
+    const newState = processUnifiedTrade(state, result);
     setState(newState);
   };
 
@@ -98,14 +89,9 @@ const FlipRotational = () => {
     
     let currentState = state;
     
-    // Each trade applies to BOTH CFD and Futures
+    // Each trade applies to ALL groups (unified)
     trades.forEach((result) => {
-      if (cfdGroups.length > 0) {
-        currentState = processGroupTrade(currentState, 'cfd', result);
-      }
-      if (futuresGroups.length > 0) {
-        currentState = processGroupTrade(currentState, 'futures', result);
-      }
+      currentState = processUnifiedTrade(currentState, result);
     });
     
     setState(currentState);
