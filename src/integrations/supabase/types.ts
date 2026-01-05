@@ -289,6 +289,36 @@ export type Database = {
         }
         Relationships: []
       }
+      group_rotational_simulations: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          name: string
+          state: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config: Json
+          created_at?: string
+          id?: string
+          name?: string
+          state: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          state?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           account_id: string | null

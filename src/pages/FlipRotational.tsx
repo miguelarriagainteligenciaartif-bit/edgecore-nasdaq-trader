@@ -5,6 +5,8 @@ import { GroupSimulationDisplay } from "@/components/rotational/GroupSimulationD
 import { GroupSummaryCards } from "@/components/rotational/GroupSummaryCards";
 import { GroupTradeHistory } from "@/components/rotational/GroupTradeHistory";
 import { WithdrawalProjection } from "@/components/rotational/WithdrawalProjection";
+import { SaveSimulationDialog } from "@/components/rotational/SaveSimulationDialog";
+import { LoadSimulationDialog } from "@/components/rotational/LoadSimulationDialog";
 import { Button } from "@/components/ui/button";
 import { 
   GroupRotationalConfig,
@@ -15,6 +17,7 @@ import {
   processGroupTrade,
   undoGroupTrade,
 } from "@/utils/groupRotationalSimulator";
+import { useGroupRotationalSimulations, SavedGroupSimulation } from "@/hooks/useGroupRotationalSimulations";
 import { supabase } from "@/integrations/supabase/client";
 import { Layers, Undo2, RotateCcw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +27,16 @@ const FlipRotational = () => {
   const [config, setConfig] = useState<GroupRotationalConfig>(createDefaultConfig());
   const [state, setState] = useState<GroupRotationalState | null>(null);
   const [isSimulationActive, setIsSimulationActive] = useState(false);
+  const [currentSimulationId, setCurrentSimulationId] = useState<string | null>(null);
+  const [currentSimulationName, setCurrentSimulationName] = useState<string>("");
+
+  const { 
+    simulations, 
+    loading: loadingSimulations, 
+    saveSimulation, 
+    deleteSimulation, 
+    loadSimulation 
+  } = useGroupRotationalSimulations(user?.id ?? null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -43,6 +56,8 @@ const FlipRotational = () => {
     const initialState = initializeGroupState(config);
     setState(initialState);
     setIsSimulationActive(true);
+    setCurrentSimulationId(null);
+    setCurrentSimulationName("");
   };
 
   const handleTradeResult = (brokerType: BrokerType, result: 'TP' | 'SL') => {
@@ -65,6 +80,26 @@ const FlipRotational = () => {
   const handleNewSimulation = () => {
     setState(null);
     setIsSimulationActive(false);
+    setCurrentSimulationId(null);
+    setCurrentSimulationName("");
+  };
+
+  const handleSaveSimulation = async (name: string) => {
+    if (!state) return;
+    const id = await saveSimulation(name, config, state, currentSimulationId || undefined);
+    if (id) {
+      setCurrentSimulationId(id);
+      setCurrentSimulationName(name);
+    }
+  };
+
+  const handleLoadSimulation = (simulation: SavedGroupSimulation) => {
+    const { config: loadedConfig, state: loadedState } = loadSimulation(simulation);
+    setConfig(loadedConfig);
+    setState(loadedState);
+    setIsSimulationActive(true);
+    setCurrentSimulationId(simulation.id);
+    setCurrentSimulationName(simulation.name);
   };
 
   return (
@@ -94,17 +129,29 @@ const FlipRotational = () => {
       {/* Content */}
       <div className="container mx-auto px-4 py-8 space-y-6">
         {!isSimulationActive ? (
-          <GroupConfigForm
-            config={config}
-            onConfigChange={setConfig}
-            onStart={handleStartSimulation}
-            isSimulationActive={isSimulationActive}
-          />
+          <>
+            {/* Botones de cargar simulación */}
+            <div className="flex justify-end">
+              <LoadSimulationDialog
+                simulations={simulations}
+                loading={loadingSimulations}
+                onLoad={handleLoadSimulation}
+                onDelete={deleteSimulation}
+              />
+            </div>
+            
+            <GroupConfigForm
+              config={config}
+              onConfigChange={setConfig}
+              onStart={handleStartSimulation}
+              isSimulationActive={isSimulationActive}
+            />
+          </>
         ) : (
           <>
             {/* Controles superiores */}
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -122,6 +169,17 @@ const FlipRotational = () => {
                   <RotateCcw className="h-4 w-4 mr-1" />
                   Reiniciar
                 </Button>
+                <SaveSimulationDialog
+                  onSave={handleSaveSimulation}
+                  currentName={currentSimulationName}
+                  isUpdate={!!currentSimulationId}
+                />
+                <LoadSimulationDialog
+                  simulations={simulations}
+                  loading={loadingSimulations}
+                  onLoad={handleLoadSimulation}
+                  onDelete={deleteSimulation}
+                />
               </div>
               <Button
                 variant="ghost"
@@ -132,6 +190,13 @@ const FlipRotational = () => {
                 ← Nueva simulación
               </Button>
             </div>
+
+            {/* Indicador de simulación guardada */}
+            {currentSimulationName && (
+              <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-md inline-block">
+                📁 {currentSimulationName}
+              </div>
+            )}
 
             {/* Resumen */}
             <GroupSummaryCards state={state!} />
