@@ -225,8 +225,9 @@ export const processUnifiedTrade = (
           
           // Apply withdrawals rules
           if (g.brokerType === 'cfd') {
-            // CFD: only withdraw once profit target % is reached
-            if (checkWithdrawalTarget(newAccount, state.config.profitTargetPercent)) {
+            // CFD (FTMO): Retira siempre que haya profit positivo
+            const profit = newAccount.currentBalance - newAccount.initialBalance;
+            if (profit > 0) {
               const { newBalance, withdrawalAmount } = processWithdrawal(newAccount, g);
               if (withdrawalAmount > 0) {
                 newAccount = {
