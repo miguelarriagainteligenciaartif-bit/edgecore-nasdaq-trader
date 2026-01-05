@@ -76,9 +76,19 @@ const FlipRotational = () => {
     setMainTab("simulation");
   };
 
-  const handleTradeResult = (brokerType: BrokerType, result: 'TP' | 'SL') => {
+  // Process trade for BOTH brokers simultaneously (same result applies to CFD and Futures)
+  const handleTradeResult = (result: 'TP' | 'SL') => {
     if (!state) return;
-    const newState = processGroupTrade(state, brokerType, result);
+    let newState = state;
+    
+    // Apply to CFD first, then Futures (same result for both)
+    if (cfdGroups.length > 0) {
+      newState = processGroupTrade(newState, 'cfd', result);
+    }
+    if (futuresGroups.length > 0) {
+      newState = processGroupTrade(newState, 'futures', result);
+    }
+    
     setState(newState);
   };
 
@@ -87,12 +97,15 @@ const FlipRotational = () => {
     if (!state) return;
     
     let currentState = state;
-    const brokerTypes = [...new Set(config.groups.map(g => g.brokerType))];
     
-    trades.forEach((result, index) => {
-      // Alternate between broker types for each trade
-      const brokerType = brokerTypes[index % brokerTypes.length];
-      currentState = processGroupTrade(currentState, brokerType, result);
+    // Each trade applies to BOTH CFD and Futures
+    trades.forEach((result) => {
+      if (cfdGroups.length > 0) {
+        currentState = processGroupTrade(currentState, 'cfd', result);
+      }
+      if (futuresGroups.length > 0) {
+        currentState = processGroupTrade(currentState, 'futures', result);
+      }
     });
     
     setState(currentState);
@@ -323,87 +336,61 @@ const FlipRotational = () => {
           <TabsContent value="trades" className="space-y-6">
             {state && (
               <>
-                {/* Quick manual trade buttons */}
+                {/* Quick manual trade buttons - UNIFIED */}
                 <Card className="bg-card/50 border-border/50">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Play className="h-4 w-4 text-primary" />
-                      Trade Rápido (Manual)
+                      Trade Rápido (aplica a CFD + Futuros)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* CFD Quick Trade */}
+                    {/* Show current turn info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                       {cfdGroups.length > 0 && (
-                        <div className="p-4 border border-blue-500/30 rounded-lg bg-blue-500/5">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-500" />
-                              <span className="font-medium">CFD</span>
-                              <span className="text-xs text-muted-foreground">
-                                ${cfdGroups[0]?.riskPerTrade} riesgo
-                              </span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              Turno: {state.groups.filter(g => g.brokerType === 'cfd')[state.currentTurnByBroker['cfd'] || 0]?.name}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              className="flex-1 border-emerald-500/50 hover:bg-emerald-500/10"
-                              onClick={() => handleTradeResult('cfd', 'TP')}
-                            >
-                              <TrendingUp className="h-4 w-4 mr-1 text-emerald-500" />
-                              TP +${(cfdGroups[0]?.riskPerTrade || 0) * config.riskRewardRatio}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="flex-1 border-red-500/50 hover:bg-red-500/10"
-                              onClick={() => handleTradeResult('cfd', 'SL')}
-                            >
-                              <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
-                              SL -${cfdGroups[0]?.riskPerTrade}
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 rounded-md text-sm">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span>CFD: {state.groups.filter(g => g.brokerType === 'cfd')[state.currentTurnByBroker['cfd'] || 0]?.name}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            ${cfdGroups[0]?.riskPerTrade}/trade
+                          </span>
                         </div>
                       )}
-
-                      {/* Futures Quick Trade */}
                       {futuresGroups.length > 0 && (
-                        <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/5">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-amber-500" />
-                              <span className="font-medium">Futuros</span>
-                              <span className="text-xs text-muted-foreground">
-                                ${futuresGroups[0]?.riskPerTrade} riesgo
-                              </span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              Turno: {state.groups.filter(g => g.brokerType === 'futures')[state.currentTurnByBroker['futures'] || 0]?.name}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              className="flex-1 border-emerald-500/50 hover:bg-emerald-500/10"
-                              onClick={() => handleTradeResult('futures', 'TP')}
-                            >
-                              <TrendingUp className="h-4 w-4 mr-1 text-emerald-500" />
-                              TP +${(futuresGroups[0]?.riskPerTrade || 0) * config.riskRewardRatio}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="flex-1 border-red-500/50 hover:bg-red-500/10"
-                              onClick={() => handleTradeResult('futures', 'SL')}
-                            >
-                              <TrendingDown className="h-4 w-4 mr-1 text-red-500" />
-                              SL -${futuresGroups[0]?.riskPerTrade}
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 rounded-md text-sm">
+                          <div className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span>Futuros: {state.groups.filter(g => g.brokerType === 'futures')[state.currentTurnByBroker['futures'] || 0]?.name}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            ${futuresGroups[0]?.riskPerTrade}/trade
+                          </span>
                         </div>
                       )}
+                    </div>
+
+                    {/* Unified TP/SL Buttons */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        variant="outline"
+                        className="h-16 border-emerald-500/50 hover:bg-emerald-500/10"
+                        onClick={() => handleTradeResult('TP')}
+                      >
+                        <TrendingUp className="h-5 w-5 mr-2 text-emerald-500" />
+                        <div className="text-left">
+                          <div className="font-bold">TP</div>
+                          <div className="text-xs text-muted-foreground">Take Profit</div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-16 border-red-500/50 hover:bg-red-500/10"
+                        onClick={() => handleTradeResult('SL')}
+                      >
+                        <TrendingDown className="h-5 w-5 mr-2 text-red-500" />
+                        <div className="text-left">
+                          <div className="font-bold">SL</div>
+                          <div className="text-xs text-muted-foreground">Stop Loss</div>
+                        </div>
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

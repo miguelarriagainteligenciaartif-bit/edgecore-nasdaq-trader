@@ -406,24 +406,28 @@ const GroupCard = ({
           {group.brokerType === 'futures' && (
             <div className="grid grid-cols-2 gap-3 p-2 bg-amber-500/10 rounded">
               <div className="space-y-1">
-                <Label className="text-xs">Buffer Requerido ($)</Label>
+                <Label className="text-xs">Umbral Retiro ($)</Label>
                 <Input
                   type="number"
-                  value={group.bufferRequired || 2600}
-                  onChange={(e) => onUpdate({ bufferRequired: parseFloat(e.target.value) || 2600 })}
+                  value={group.withdrawalThreshold || 54100}
+                  onChange={(e) => onUpdate({ withdrawalThreshold: parseFloat(e.target.value) || 54100 })}
                   disabled={disabled}
                   className="h-8 text-sm"
+                  placeholder="54100"
                 />
+                <p className="text-[10px] text-muted-foreground">Balance al que retirar</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Trailing Stop Buffer ($)</Label>
+                <Label className="text-xs">Monto Retiro ($)</Label>
                 <Input
                   type="number"
-                  value={group.trailingStopBuffer || 100}
-                  onChange={(e) => onUpdate({ trailingStopBuffer: parseFloat(e.target.value) || 100 })}
+                  value={group.withdrawalAmount || 2000}
+                  onChange={(e) => onUpdate({ withdrawalAmount: parseFloat(e.target.value) || 2000 })}
                   disabled={disabled}
                   className="h-8 text-sm"
+                  placeholder="2000"
                 />
+                <p className="text-[10px] text-muted-foreground">Cuánto retirar</p>
               </div>
             </div>
           )}

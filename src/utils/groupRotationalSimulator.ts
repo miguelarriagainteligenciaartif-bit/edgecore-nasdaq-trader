@@ -26,9 +26,9 @@ export interface GroupConfig {
   accounts: AccountConfig[];
   // Risk per trade in dollars (same for all accounts in this group)
   riskPerTrade: number; // e.g., 375 for Futures, 800 for CFD
-  // Futuros specific
-  bufferRequired?: number; // Colchón requerido (ej: 2600 para Apex)
-  trailingStopBuffer?: number; // Buffer donde se queda el trailing (ej: 100)
+  // Futures specific - simple withdrawal rules
+  withdrawalThreshold?: number; // Balance to reach before withdrawing (e.g., 54100 for Apex 50K)
+  withdrawalAmount?: number; // Amount to withdraw when threshold is reached (e.g., 2000)
 }
 
 export interface GroupRotationalConfig {
@@ -129,17 +129,14 @@ const processWithdrawal = (
       withdrawalAmount: profit,
     };
   } else {
-    // Futuros (Apex): Mantener buffer, retirar el resto
-    const buffer = group.bufferRequired || 2600;
-    const trailingBuffer = group.trailingStopBuffer || 100;
-    const targetBalance = account.initialBalance + buffer;
+    // Futuros: Retiro simple - cuando llega al umbral, retira cantidad fija
+    const threshold = group.withdrawalThreshold || (account.initialBalance + 4100); // Default: initial + 4100
+    const withdrawAmount = group.withdrawalAmount || 2000; // Default: $2000
     
-    if (account.currentBalance > targetBalance) {
-      // Puede retirar: balance actual - (inicial + trailing buffer)
-      const withdrawableAmount = account.currentBalance - (account.initialBalance + trailingBuffer);
+    if (account.currentBalance >= threshold) {
       return {
-        newBalance: account.initialBalance + trailingBuffer,
-        withdrawalAmount: Math.max(0, withdrawableAmount),
+        newBalance: account.currentBalance - withdrawAmount,
+        withdrawalAmount: withdrawAmount,
       };
     }
     return { newBalance: account.currentBalance, withdrawalAmount: 0 };
@@ -411,8 +408,8 @@ export const createDefaultConfig = (): GroupRotationalConfig => {
         brokerType: 'futures',
         brokerName: 'Apex',
         riskPerTrade: 375, // $375 risk per trade in Futures
-        bufferRequired: 2600,
-        trailingStopBuffer: 100,
+        withdrawalThreshold: 54100, // When balance reaches this, withdraw
+        withdrawalAmount: 2000, // Amount to withdraw
         accounts: [
           { id: generateId(), name: 'Apex 50K #1', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [] },
           { id: generateId(), name: 'Apex 50K #2', initialBalance: 50000, currentBalance: 50000, profitTarget: 10, withdrawals: [] },
