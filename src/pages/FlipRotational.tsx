@@ -9,12 +9,12 @@ import { SaveSimulationDialog } from "@/components/rotational/SaveSimulationDial
 import { LoadSimulationDialog } from "@/components/rotational/LoadSimulationDialog";
 import { GroupTradeSelector, TradeResult } from "@/components/rotational/GroupTradeSelector";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BrokerType,
   GroupRotationalConfig,
   GroupRotationalState,
-  BrokerType,
   createDefaultConfig,
   initializeGroupState,
   processGroupTrade,
@@ -22,18 +22,19 @@ import {
 } from "@/utils/groupRotationalSimulator";
 import { useGroupRotationalSimulations, SavedGroupSimulation } from "@/hooks/useGroupRotationalSimulations";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Layers, 
-  Undo2, 
-  RotateCcw, 
-  Settings, 
-  Play, 
-  TrendingUp, 
+import {
+  Layers,
+  Pencil,
+  RotateCcw,
+  Settings,
+  Target,
   TrendingDown,
-  DollarSign,
-  Target
+  TrendingUp,
+  Undo2,
+  Play,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 const FlipRotational = () => {
   const [user, setUser] = useState<any>(null);
@@ -99,13 +100,33 @@ const FlipRotational = () => {
 
   const handleUndo = () => {
     if (!state) return;
-    const newState = undoGroupTrade(state);
-    setState(newState);
+    if (state.trades.length === 0) {
+      toast.message("No hay trades para deshacer");
+      return;
+    }
+    setState(undoGroupTrade(state));
   };
 
   const handleReset = () => {
-    const initialState = initializeGroupState(config);
-    setState(initialState);
+    if (!state) return;
+    setState(initializeGroupState(config));
+    setCurrentSimulationId(null);
+    setCurrentSimulationName("");
+    toast.success("Simulación reiniciada");
+  };
+
+  const handleEditConfig = () => {
+    const ok = window.confirm(
+      "Esto cerrará la simulación actual para que puedas editar la configuración. ¿Continuar?"
+    );
+    if (!ok) return;
+
+    setState(null);
+    setIsSimulationActive(false);
+    setCurrentSimulationId(null);
+    setCurrentSimulationName("");
+    setMainTab("config");
+    toast.message("Listo: ya puedes editar la configuración");
   };
 
   const handleNewSimulation = () => {
@@ -240,19 +261,15 @@ const FlipRotational = () => {
                   <Undo2 className="h-4 w-4 mr-1" />
                   Deshacer
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleReset}
-                >
+                <Button variant="outline" size="sm" onClick={handleReset}>
                   <RotateCcw className="h-4 w-4 mr-1" />
                   Reiniciar
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setMainTab("config")}
-                >
+                <Button variant="outline" size="sm" onClick={handleEditConfig}>
+                  <Pencil className="h-4 w-4 mr-1" />
+                  Editar
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setMainTab("config")}>
                   <Settings className="h-4 w-4" />
                 </Button>
               </div>
