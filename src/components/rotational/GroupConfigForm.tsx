@@ -44,12 +44,14 @@ export const GroupConfigForm = ({
   const addGroup = (brokerType: BrokerType) => {
     const brokerName = brokerType === 'cfd' ? 'FTMO' : 'Apex';
     const groupNumber = config.groups.filter(g => g.brokerType === brokerType).length + 1;
+    const defaultRisk = brokerType === 'cfd' ? 800 : 375;
     
     const newGroup: GroupConfig = {
       id: generateId(),
       name: `${brokerName} Grupo ${groupNumber}`,
       brokerType,
       brokerName,
+      riskPerTrade: defaultRisk,
       accounts: [],
       ...(brokerType === 'futures' && {
         bufferRequired: 2600,
@@ -152,25 +154,7 @@ export const GroupConfigForm = ({
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Parámetros globales */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-secondary/30 rounded-lg">
-          <div className="space-y-2">
-            <Label htmlFor="riskPercentage" className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" />
-              Riesgo por Trade (%)
-            </Label>
-            <Input
-              id="riskPercentage"
-              type="number"
-              min={0.1}
-              max={5}
-              step={0.1}
-              value={config.riskPercentage}
-              onChange={(e) => onConfigChange({ ...config, riskPercentage: parseFloat(e.target.value) || 0.8 })}
-              disabled={isSimulationActive}
-              className="bg-background"
-            />
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-lg">
           <div className="space-y-2">
             <Label htmlFor="riskRewardRatio" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -384,7 +368,7 @@ const GroupCard = ({
 
       {isExpanded && (
         <div className="p-3 space-y-3 bg-background">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Nombre del Grupo</Label>
               <Input
@@ -401,6 +385,20 @@ const GroupCard = ({
                 onChange={(e) => onUpdate({ brokerName: e.target.value })}
                 disabled={disabled}
                 className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Target className="h-3 w-3" />
+                Riesgo/Trade ($)
+              </Label>
+              <Input
+                type="number"
+                value={group.riskPerTrade}
+                onChange={(e) => onUpdate({ riskPerTrade: parseFloat(e.target.value) || 0 })}
+                disabled={disabled}
+                className="h-8 text-sm"
+                placeholder="375"
               />
             </div>
           </div>
