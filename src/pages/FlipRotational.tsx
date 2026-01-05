@@ -4,7 +4,7 @@ import { GroupConfigForm } from "@/components/rotational/GroupConfigForm";
 import { GroupSimulationDisplay } from "@/components/rotational/GroupSimulationDisplay";
 import { GroupSummaryCards } from "@/components/rotational/GroupSummaryCards";
 import { GroupTradeHistory } from "@/components/rotational/GroupTradeHistory";
-import { WithdrawalProjection } from "@/components/rotational/WithdrawalProjection";
+
 import { SaveSimulationDialog } from "@/components/rotational/SaveSimulationDialog";
 import { LoadSimulationDialog } from "@/components/rotational/LoadSimulationDialog";
 import { GroupTradeSelector, TradeResult } from "@/components/rotational/GroupTradeSelector";
@@ -278,7 +278,7 @@ const FlipRotational = () => {
 
         {/* Main Tabs */}
         <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-xl mb-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-md mb-6">
             <TabsTrigger value="config" className="gap-2">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Configurar</span>
@@ -290,10 +290,6 @@ const FlipRotational = () => {
             <TabsTrigger value="simulation" className="gap-2" disabled={!isSimulationActive}>
               <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Simulación</span>
-            </TabsTrigger>
-            <TabsTrigger value="projection" className="gap-2" disabled={!isSimulationActive}>
-              <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Proyección</span>
             </TabsTrigger>
           </TabsList>
 
@@ -406,12 +402,6 @@ const FlipRotational = () => {
             )}
           </TabsContent>
 
-          {/* PROJECTION TAB */}
-          <TabsContent value="projection" className="space-y-6">
-            {state && (
-              <WithdrawalProjection state={state} />
-            )}
-          </TabsContent>
         </Tabs>
       </div>
     </div>
