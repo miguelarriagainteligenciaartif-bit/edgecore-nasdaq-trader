@@ -197,23 +197,22 @@ export const processUnifiedTrade = (
     
     // Risk is fixed per group
     const baseRisk = calculateRiskAmount(group);
-    const profitLoss = result === 'TP' 
+    const singleAccountPL = result === 'TP' 
       ? baseRisk * state.config.riskRewardRatio 
       : -baseRisk;
     
     // Apply result to all accounts in the group
     const accountsAffected = group.accounts.map(account => {
-      const accountPL = result === 'TP' 
-        ? baseRisk * state.config.riskRewardRatio 
-        : -baseRisk;
-      
       return {
         accountId: account.id,
         accountName: account.name,
         balanceBefore: account.currentBalance,
-        balanceAfter: account.currentBalance + accountPL,
+        balanceAfter: account.currentBalance + singleAccountPL,
       };
     });
+    
+    // Total P/L for the group = P/L per account * number of accounts
+    const groupTotalProfitLoss = singleAccountPL * group.accounts.length;
     
     // Add effect for this group
     effects.push({
@@ -221,7 +220,7 @@ export const processUnifiedTrade = (
       groupName: group.name,
       brokerType: group.brokerType,
       riskAmount: baseRisk,
-      profitLoss,
+      profitLoss: groupTotalProfitLoss, // Now correctly sums all accounts
       accountsAffected,
     });
     
