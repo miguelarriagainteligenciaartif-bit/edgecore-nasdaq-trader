@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChecklistData } from "../ChecklistWizard";
-import { CheckCircle, Sparkles } from "lucide-react";
+import { CheckCircle, Sparkles, Quote } from "lucide-react";
 
 interface StepPrepProps {
   data: ChecklistData;
@@ -13,6 +13,17 @@ export const StepPrep = ({ data, updateData }: StepPrepProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Inspirational Quote */}
+      <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 text-center">
+        <Quote className="h-5 w-5 mx-auto mb-2 text-primary/60" />
+        <p className="text-sm italic text-muted-foreground leading-relaxed">
+          "Y todo lo que hagáis, hacedlo de corazón, como para el Señor y no para los hombres; 
+          sabiendo que del Señor recibiréis la recompensa de la herencia, porque a Cristo el Señor servís."
+        </p>
+        <p className="text-xs text-primary mt-2 font-medium">— Colosenses 3:23-24</p>
+        <p className="text-lg font-bold text-destructive mt-3">PROHIBIDO DUDAR</p>
+      </div>
+
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold text-primary mb-2">El poder de la espera</h2>
         <p className="text-muted-foreground">Preparación mental antes de operar</p>
