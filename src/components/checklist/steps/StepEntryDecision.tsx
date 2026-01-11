@@ -1,8 +1,7 @@
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChecklistData } from "../ChecklistWizard";
-import { CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle } from "lucide-react";
 
 interface StepEntryDecisionProps {
   data: ChecklistData;
@@ -12,86 +11,48 @@ interface StepEntryDecisionProps {
 export const StepEntryDecision = ({ data, updateData }: StepEntryDecisionProps) => {
   return (
     <div className="space-y-6">
-      <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
-        <p className="text-sm text-foreground">
-          Basándote en todo el análisis realizado (Monthly → Weekly → Daily → 4H → 1H),
-          ¿se dan las condiciones para buscar entrada según tus modelos?
-        </p>
+      {/* Header */}
+      <div className="text-center mb-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Clock className="h-5 w-5 text-primary" />
+          <p className="text-sm font-medium text-primary">Confirmación a las 9:30 AM (NY)</p>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Se cumplen las condiciones para entrar?
-        </Label>
-        <RadioGroup
-          value={data.entry_conditions_met === null ? "" : data.entry_conditions_met ? "yes" : "no"}
-          onValueChange={(value) => {
-            updateData({ 
-              entry_conditions_met: value === "yes",
-              no_trade_reason: value === "yes" ? null : data.no_trade_reason,
-              executed_entry: value === "yes" ? data.executed_entry : null,
-              entries: value === "yes" ? data.entries : [],
-            });
-          }}
-          className="grid grid-cols-2 gap-4"
-        >
-          <div className="flex flex-col items-center p-6 rounded-lg border-2 border-border hover:border-success cursor-pointer has-[:checked]:border-success has-[:checked]:bg-success/10 transition-all">
-            <RadioGroupItem value="yes" id="conditions-yes" className="sr-only" />
-            <Label htmlFor="conditions-yes" className="cursor-pointer flex flex-col items-center gap-3">
-              <CheckCircle className="h-12 w-12 text-success" />
-              <span className="text-lg font-bold">Sí, buscar entrada</span>
-              <span className="text-xs text-muted-foreground text-center">
-                Las condiciones están alineadas
-              </span>
+      <div className="space-y-5">
+        {/* Checkbox: All analyses complete */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="entry-analyses-complete"
+            checked={data.entry_conditions_met || false}
+            onCheckedChange={(checked) => updateData({ entry_conditions_met: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="entry-analyses-complete" className="text-base font-medium cursor-pointer">
+              Todos los análisis multi-timeframe completos
             </Label>
-          </div>
-          <div className="flex flex-col items-center p-6 rounded-lg border-2 border-border hover:border-destructive cursor-pointer has-[:checked]:border-destructive has-[:checked]:bg-destructive/10 transition-all">
-            <RadioGroupItem value="no" id="conditions-no" className="sr-only" />
-            <Label htmlFor="conditions-no" className="cursor-pointer flex flex-col items-center gap-3">
-              <XCircle className="h-12 w-12 text-destructive" />
-              <span className="text-lg font-bold">No, no operar</span>
-              <span className="text-xs text-muted-foreground text-center">
-                Las condiciones no son óptimas
-              </span>
-            </Label>
-          </div>
-        </RadioGroup>
-      </div>
-
-      {data.entry_conditions_met === false && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
-            <div className="flex items-center gap-3 mb-3">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-              <p className="font-bold text-destructive">PROHIBIDO DUDAR</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Has decidido no operar hoy. Esto es una decisión válida y disciplinada.
-              El mercado siempre estará ahí mañana.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-base font-medium">
-              ¿Por qué no se dan las condiciones? (opcional)
-            </Label>
-            <Textarea
-              placeholder="Describe brevemente la razón..."
-              value={data.no_trade_reason || ""}
-              onChange={(e) => updateData({ no_trade_reason: e.target.value })}
-              className="resize-none"
-              rows={3}
-            />
           </div>
         </div>
-      )}
+      </div>
 
-      {data.entry_conditions_met === true && (
+      {/* Warning Note */}
+      <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
+          <p className="text-sm font-medium">
+            Si NO se cumplen las condiciones entre 9:30 - 10:15 AM, NO hay entrada hoy. Esperar hasta mañana.
+          </p>
+        </div>
+      </div>
+
+      {/* Success state */}
+      {data.entry_conditions_met && (
         <div className="p-4 rounded-lg bg-success/10 border border-success/30">
           <div className="flex items-center gap-3">
             <CheckCircle className="h-6 w-6 text-success" />
             <div>
-              <p className="font-bold text-success">Condiciones OK</p>
+              <p className="font-bold text-success">Listo para ejecutar</p>
               <p className="text-sm text-muted-foreground">
                 Continúa al siguiente paso para registrar la ejecución.
               </p>
