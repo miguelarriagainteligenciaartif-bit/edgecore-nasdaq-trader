@@ -25,9 +25,9 @@ export interface ChecklistData {
   monthly_lows_marked: boolean | null;
   
   // Step 3: Weekly
-  weekly_previous_week: string | null;
-  weekly_fvg_count: number | null;
-  weekly_current_price_location: string | null;
+  weekly_news_reviewed: boolean | null;
+  weekly_highs_marked: boolean | null;
+  weekly_lows_marked: boolean | null;
   
   // Step 4: Daily
   daily_yesterday: string | null;
@@ -74,9 +74,9 @@ const initialData: ChecklistData = {
   prep_best_trader: null,
   monthly_highs_marked: null,
   monthly_lows_marked: null,
-  weekly_previous_week: null,
-  weekly_fvg_count: null,
-  weekly_current_price_location: null,
+  weekly_news_reviewed: null,
+  weekly_highs_marked: null,
+  weekly_lows_marked: null,
   daily_yesterday: null,
   daily_fvg_count: null,
   daily_current_price_location: null,
@@ -122,9 +122,9 @@ export const ChecklistWizard = () => {
         prep_best_trader: null,
         monthly_highs_marked: null,
         monthly_lows_marked: null,
-        weekly_previous_week: checklist.weekly_previous_week,
-        weekly_fvg_count: checklist.weekly_fvg_count,
-        weekly_current_price_location: checklist.weekly_current_price_location,
+        weekly_news_reviewed: null,
+        weekly_highs_marked: null,
+        weekly_lows_marked: null,
         daily_yesterday: checklist.daily_yesterday,
         daily_fvg_count: checklist.daily_fvg_count,
         daily_current_price_location: checklist.daily_current_price_location,
@@ -177,9 +177,9 @@ export const ChecklistWizard = () => {
 
     // Step 3
     total += 3;
-    if (data.weekly_previous_week) completed++;
-    if (data.weekly_fvg_count !== null) completed++;
-    if (data.weekly_current_price_location) completed++;
+    if (data.weekly_news_reviewed) completed++;
+    if (data.weekly_highs_marked) completed++;
+    if (data.weekly_lows_marked) completed++;
 
     // Step 4
     total += 3;
@@ -235,9 +235,9 @@ export const ChecklistWizard = () => {
       monthly_previous_month: null,
       monthly_fvg_count: null,
       monthly_current_price_location: null,
-      weekly_previous_week: data.weekly_previous_week,
-      weekly_fvg_count: data.weekly_fvg_count,
-      weekly_current_price_location: data.weekly_current_price_location,
+      weekly_previous_week: null,
+      weekly_fvg_count: null,
+      weekly_current_price_location: null,
       daily_yesterday: data.daily_yesterday,
       daily_fvg_count: data.daily_fvg_count,
       daily_current_price_location: data.daily_current_price_location,
@@ -322,7 +322,7 @@ export const ChecklistWizard = () => {
       case 2:
         return data.monthly_highs_marked && data.monthly_lows_marked;
       case 3:
-        return !!data.weekly_previous_week && data.weekly_fvg_count !== null && !!data.weekly_current_price_location;
+        return data.weekly_news_reviewed && data.weekly_highs_marked && data.weekly_lows_marked;
       case 4:
         return !!data.daily_yesterday && data.daily_fvg_count !== null && !!data.daily_current_price_location;
       case 5:
