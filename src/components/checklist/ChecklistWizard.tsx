@@ -36,14 +36,13 @@ export interface ChecklistData {
   daily_zones_marked: boolean | null;
   
   // Step 5: 4H
-  h4_context: string | null;
-  h4_fvg_count: number | null;
-  h4_price_location: string | null;
+  h4_confluences_verified: boolean | null;
+  h4_zones_marked: boolean | null;
   
   // Step 6: 1H
-  h1_context: string | null;
-  h1_fvg_count: number | null;
-  h1_poi_identified: boolean | null;
+  h1_confluences_verified: boolean | null;
+  h1_zones_identified: boolean | null;
+  h1_direction_determined: boolean | null;
   
   // Step 7: Entry Decision
   entry_conditions_met: boolean | null;
@@ -82,12 +81,11 @@ const initialData: ChecklistData = {
   daily_highs_marked: null,
   daily_lows_marked: null,
   daily_zones_marked: null,
-  h4_context: null,
-  h4_fvg_count: null,
-  h4_price_location: null,
-  h1_context: null,
-  h1_fvg_count: null,
-  h1_poi_identified: null,
+  h4_confluences_verified: null,
+  h4_zones_marked: null,
+  h1_confluences_verified: null,
+  h1_zones_identified: null,
+  h1_direction_determined: null,
   entry_conditions_met: null,
   no_trade_reason: null,
   executed_entry: null,
@@ -131,12 +129,11 @@ export const ChecklistWizard = () => {
         daily_highs_marked: null,
         daily_lows_marked: null,
         daily_zones_marked: null,
-        h4_context: checklist.h4_context,
-        h4_fvg_count: checklist.h4_fvg_count,
-        h4_price_location: checklist.h4_price_location,
-        h1_context: checklist.h1_context,
-        h1_fvg_count: checklist.h1_fvg_count,
-        h1_poi_identified: checklist.h1_poi_identified,
+        h4_confluences_verified: null,
+        h4_zones_marked: null,
+        h1_confluences_verified: null,
+        h1_zones_identified: null,
+        h1_direction_determined: null,
         entry_conditions_met: checklist.entry_conditions_met,
         no_trade_reason: checklist.no_trade_reason,
         executed_entry: checklist.executed_entry,
@@ -192,16 +189,15 @@ export const ChecklistWizard = () => {
     if (data.daily_zones_marked) completed++;
 
     // Step 5
-    total += 3;
-    if (data.h4_context) completed++;
-    if (data.h4_fvg_count !== null) completed++;
-    if (data.h4_price_location) completed++;
+    total += 2;
+    if (data.h4_confluences_verified) completed++;
+    if (data.h4_zones_marked) completed++;
 
     // Step 6
     total += 3;
-    if (data.h1_context) completed++;
-    if (data.h1_fvg_count !== null) completed++;
-    if (data.h1_poi_identified !== null) completed++;
+    if (data.h1_confluences_verified) completed++;
+    if (data.h1_zones_identified) completed++;
+    if (data.h1_direction_determined) completed++;
 
     // Step 7
     total += 1;
@@ -245,12 +241,12 @@ export const ChecklistWizard = () => {
       daily_yesterday: null,
       daily_fvg_count: null,
       daily_current_price_location: null,
-      h4_context: data.h4_context,
-      h4_fvg_count: data.h4_fvg_count,
-      h4_price_location: data.h4_price_location,
-      h1_context: data.h1_context,
-      h1_fvg_count: data.h1_fvg_count,
-      h1_poi_identified: data.h1_poi_identified,
+      h4_context: null,
+      h4_fvg_count: null,
+      h4_price_location: null,
+      h1_context: null,
+      h1_fvg_count: null,
+      h1_poi_identified: null,
       entry_conditions_met: data.entry_conditions_met,
       no_trade_reason: data.no_trade_reason,
       executed_entry: data.executed_entry,
@@ -330,9 +326,9 @@ export const ChecklistWizard = () => {
       case 4:
         return data.daily_news_reviewed && data.daily_highs_marked && data.daily_lows_marked && data.daily_zones_marked;
       case 5:
-        return !!data.h4_context && data.h4_fvg_count !== null && !!data.h4_price_location;
+        return data.h4_confluences_verified && data.h4_zones_marked;
       case 6:
-        return !!data.h1_context && data.h1_fvg_count !== null && data.h1_poi_identified !== null;
+        return data.h1_confluences_verified && data.h1_zones_identified && data.h1_direction_determined;
       case 7:
         return data.entry_conditions_met !== null;
       case 8:
