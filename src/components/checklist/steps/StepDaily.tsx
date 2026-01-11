@@ -1,8 +1,7 @@
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChecklistData } from "../ChecklistWizard";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { CheckCircle, Clock } from "lucide-react";
 
 interface StepDailyProps {
   data: ChecklistData;
@@ -10,88 +9,96 @@ interface StepDailyProps {
 }
 
 export const StepDaily = ({ data, updateData }: StepDailyProps) => {
+  const allChecked = data.daily_news_reviewed && data.daily_highs_marked && data.daily_lows_marked && data.daily_zones_marked;
+
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Cómo cerró el día de ayer?
-        </Label>
-        <RadioGroup
-          value={data.daily_yesterday || ""}
-          onValueChange={(value) => updateData({ daily_yesterday: value })}
-          className="grid grid-cols-3 gap-4"
-        >
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-success cursor-pointer has-[:checked]:border-success has-[:checked]:bg-success/10">
-            <RadioGroupItem value="bullish" id="daily-bullish" className="sr-only" />
-            <Label htmlFor="daily-bullish" className="cursor-pointer flex flex-col items-center gap-2">
-              <TrendingUp className="h-8 w-8 text-success" />
-              <span>Alcista</span>
-            </Label>
-          </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-destructive cursor-pointer has-[:checked]:border-destructive has-[:checked]:bg-destructive/10">
-            <RadioGroupItem value="bearish" id="daily-bearish" className="sr-only" />
-            <Label htmlFor="daily-bearish" className="cursor-pointer flex flex-col items-center gap-2">
-              <TrendingDown className="h-8 w-8 text-destructive" />
-              <span>Bajista</span>
-            </Label>
-          </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer has-[:checked]:border-muted-foreground has-[:checked]:bg-muted/50">
-            <RadioGroupItem value="ranging" id="daily-ranging" className="sr-only" />
-            <Label htmlFor="daily-ranging" className="cursor-pointer flex flex-col items-center gap-2">
-              <Minus className="h-8 w-8 text-muted-foreground" />
-              <span>Rango</span>
-            </Label>
-          </div>
-        </RadioGroup>
+      {/* Header */}
+      <div className="text-center mb-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Clock className="h-5 w-5 text-primary" />
+          <p className="text-sm font-medium text-primary">Revisar cada día - Análisis a las 9:15 AM (NY)</p>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Cuántos FVG identificados en diario?
-        </Label>
-        <Input
-          type="number"
-          min={0}
-          max={20}
-          placeholder="0"
-          value={data.daily_fvg_count ?? ""}
-          onChange={(e) => updateData({ daily_fvg_count: e.target.value ? parseInt(e.target.value) : null })}
-          className="w-32"
-        />
+      {/* Prohibido Dudar */}
+      <div className="text-center mb-4">
+        <p className="text-lg font-bold text-destructive">PROHIBIDO DUDAR</p>
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Dónde está el precio actualmente?
-        </Label>
-        <RadioGroup
-          value={data.daily_current_price_location || ""}
-          onValueChange={(value) => updateData({ daily_current_price_location: value })}
-          className="grid grid-cols-3 gap-4"
-        >
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-success cursor-pointer has-[:checked]:border-success has-[:checked]:bg-success/10">
-            <RadioGroupItem value="premium" id="daily-premium" className="sr-only" />
-            <Label htmlFor="daily-premium" className="cursor-pointer text-center">
-              <span className="block font-bold">Premium</span>
-              <span className="text-xs text-muted-foreground">Zona de venta</span>
+      <div className="space-y-5">
+        {/* Checkbox 1: News Calendar */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="daily-news"
+            checked={data.daily_news_reviewed || false}
+            onCheckedChange={(checked) => updateData({ daily_news_reviewed: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="daily-news" className="text-base font-medium cursor-pointer">
+              Revisar calendario de noticias del día
             </Label>
           </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-primary cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/10">
-            <RadioGroupItem value="equilibrium" id="daily-equilibrium" className="sr-only" />
-            <Label htmlFor="daily-equilibrium" className="cursor-pointer text-center">
-              <span className="block font-bold">Equilibrio</span>
-              <span className="text-xs text-muted-foreground">50%</span>
+        </div>
+
+        {/* Checkbox 2: Daily Highs */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="daily-highs"
+            checked={data.daily_highs_marked || false}
+            onCheckedChange={(checked) => updateData({ daily_highs_marked: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="daily-highs" className="text-base font-medium cursor-pointer">
+              Marcar máximos diarios en gráfico
             </Label>
           </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-destructive cursor-pointer has-[:checked]:border-destructive has-[:checked]:bg-destructive/10">
-            <RadioGroupItem value="discount" id="daily-discount" className="sr-only" />
-            <Label htmlFor="daily-discount" className="cursor-pointer text-center">
-              <span className="block font-bold">Discount</span>
-              <span className="text-xs text-muted-foreground">Zona de compra</span>
+        </div>
+
+        {/* Checkbox 3: Daily Lows */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="daily-lows"
+            checked={data.daily_lows_marked || false}
+            onCheckedChange={(checked) => updateData({ daily_lows_marked: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="daily-lows" className="text-base font-medium cursor-pointer">
+              Marcar mínimos diarios en gráfico
             </Label>
           </div>
-        </RadioGroup>
+        </div>
+
+        {/* Checkbox 4: Zones */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="daily-zones"
+            checked={data.daily_zones_marked || false}
+            onCheckedChange={(checked) => updateData({ daily_zones_marked: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="daily-zones" className="text-base font-medium cursor-pointer">
+              Marcar zonas de interés: FVG, OB, 50OB
+            </Label>
+          </div>
+        </div>
       </div>
+
+      {/* Success state */}
+      {allChecked && (
+        <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 text-success" />
+            <div>
+              <p className="font-bold text-success">Análisis diario completado</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
