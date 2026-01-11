@@ -21,9 +21,8 @@ export interface ChecklistData {
   prep_best_trader: boolean | null;
   
   // Step 2: Monthly
-  monthly_previous_month: string | null;
-  monthly_fvg_count: number | null;
-  monthly_current_price_location: string | null;
+  monthly_highs_marked: boolean | null;
+  monthly_lows_marked: boolean | null;
   
   // Step 3: Weekly
   weekly_previous_week: string | null;
@@ -73,9 +72,8 @@ const initialData: ChecklistData = {
   prep_workspace_clean: null,
   prep_aromatherapy: null,
   prep_best_trader: null,
-  monthly_previous_month: null,
-  monthly_fvg_count: null,
-  monthly_current_price_location: null,
+  monthly_highs_marked: null,
+  monthly_lows_marked: null,
   weekly_previous_week: null,
   weekly_fvg_count: null,
   weekly_current_price_location: null,
@@ -122,9 +120,8 @@ export const ChecklistWizard = () => {
         prep_workspace_clean: checklist.prep_schedule_clear,
         prep_aromatherapy: checklist.prep_30min_available,
         prep_best_trader: null,
-        monthly_previous_month: checklist.monthly_previous_month,
-        monthly_fvg_count: checklist.monthly_fvg_count,
-        monthly_current_price_location: checklist.monthly_current_price_location,
+        monthly_highs_marked: null,
+        monthly_lows_marked: null,
         weekly_previous_week: checklist.weekly_previous_week,
         weekly_fvg_count: checklist.weekly_fvg_count,
         weekly_current_price_location: checklist.weekly_current_price_location,
@@ -174,10 +171,9 @@ export const ChecklistWizard = () => {
     if (data.prep_best_trader) completed++;
 
     // Step 2
-    total += 3;
-    if (data.monthly_previous_month) completed++;
-    if (data.monthly_fvg_count !== null) completed++;
-    if (data.monthly_current_price_location) completed++;
+    total += 2;
+    if (data.monthly_highs_marked) completed++;
+    if (data.monthly_lows_marked) completed++;
 
     // Step 3
     total += 3;
@@ -236,9 +232,9 @@ export const ChecklistWizard = () => {
       completion_percentage: completionPercentage,
       prep_schedule_clear: data.prep_workspace_clean,
       prep_30min_available: data.prep_aromatherapy,
-      monthly_previous_month: data.monthly_previous_month,
-      monthly_fvg_count: data.monthly_fvg_count,
-      monthly_current_price_location: data.monthly_current_price_location,
+      monthly_previous_month: null,
+      monthly_fvg_count: null,
+      monthly_current_price_location: null,
       weekly_previous_week: data.weekly_previous_week,
       weekly_fvg_count: data.weekly_fvg_count,
       weekly_current_price_location: data.weekly_current_price_location,
@@ -324,7 +320,7 @@ export const ChecklistWizard = () => {
       case 1:
         return data.prep_workspace_clean && data.prep_aromatherapy && data.prep_best_trader;
       case 2:
-        return !!data.monthly_previous_month && data.monthly_fvg_count !== null && !!data.monthly_current_price_location;
+        return data.monthly_highs_marked && data.monthly_lows_marked;
       case 3:
         return !!data.weekly_previous_week && data.weekly_fvg_count !== null && !!data.weekly_current_price_location;
       case 4:
