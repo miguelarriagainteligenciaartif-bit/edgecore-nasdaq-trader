@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChecklistData } from "../ChecklistWizard";
-import { CheckCircle, XCircle, Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { CheckCircle, XCircle, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -27,21 +27,24 @@ const NO_ENTRY_REASONS = [
 ];
 
 export const StepExecutionLog = ({ data, updateData }: StepExecutionLogProps) => {
-  const addEntry = () => {
-    if (data.entries.length >= 3) return;
-    const newEntry = {
-      entry_number: data.entries.length + 1,
-      entry_model: "M1",
-      result: null,
-    };
-    updateData({ entries: [...data.entries, newEntry] });
-  };
-
-  const removeEntry = (index: number) => {
-    const newEntries = data.entries
-      .filter((_, i) => i !== index)
-      .map((entry, i) => ({ ...entry, entry_number: i + 1 }));
-    updateData({ entries: newEntries });
+  const setEntryCount = (count: number) => {
+    if (count < 1 || count > 3) return;
+    
+    if (count > data.entries.length) {
+      // Add entries
+      const newEntries = [...data.entries];
+      for (let i = data.entries.length; i < count; i++) {
+        newEntries.push({
+          entry_number: i + 1,
+          entry_model: "M1",
+          result: null,
+        });
+      }
+      updateData({ entries: newEntries });
+    } else if (count < data.entries.length) {
+      // Remove entries from the end
+      updateData({ entries: data.entries.slice(0, count) });
+    }
   };
 
   const updateEntry = (index: number, field: string, value: string | null) => {
@@ -157,18 +160,30 @@ export const StepExecutionLog = ({ data, updateData }: StepExecutionLogProps) =>
             </div>
 
             {/* Entry Count Selection */}
-            <div className="flex items-center justify-center gap-4">
-              <span className="text-sm text-muted-foreground">Entradas registradas:</span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-2xl text-primary">{data.entries.length}</span>
-                <span className="text-muted-foreground">/ 3</span>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-center block">
+                ¿Cuántas entradas ejecutaste?
+              </Label>
+              <div className="flex items-center justify-center gap-3">
+                {[1, 2, 3].map((count) => (
+                  <Button
+                    key={count}
+                    variant={data.entries.length === count ? "default" : "outline"}
+                    size="lg"
+                    onClick={() => setEntryCount(count)}
+                    className={`w-16 h-16 text-2xl font-bold ${
+                      data.entries.length === count 
+                        ? "bg-primary text-primary-foreground" 
+                        : "hover:bg-primary/10"
+                    }`}
+                  >
+                    {count}
+                  </Button>
+                ))}
               </div>
-              {data.entries.length < 3 && (
-                <Button variant="outline" size="sm" onClick={addEntry}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Añadir
-                </Button>
-              )}
+              <p className="text-xs text-muted-foreground text-center">
+                Puedes modificar el modelo y resultado en cualquier momento
+              </p>
             </div>
 
             {/* Entry Cards */}
@@ -180,16 +195,9 @@ export const StepExecutionLog = ({ data, updateData }: StepExecutionLogProps) =>
                       <span className="font-bold text-lg text-primary">
                         Entrada {entry.entry_number}
                       </span>
-                      {data.entries.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeEntry(index)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                        Click para editar ↓
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
