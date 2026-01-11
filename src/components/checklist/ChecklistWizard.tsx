@@ -55,6 +55,8 @@ export interface ChecklistData {
     entry_model: string;
     result: string | null;
   }>;
+  no_entry_reasons: string[];
+  no_entry_notes: string;
 }
 
 const STEPS = [
@@ -90,6 +92,8 @@ const initialData: ChecklistData = {
   no_trade_reason: null,
   executed_entry: null,
   entries: [],
+  no_entry_reasons: [],
+  no_entry_notes: "",
 };
 
 export const ChecklistWizard = () => {
@@ -138,6 +142,8 @@ export const ChecklistWizard = () => {
         no_trade_reason: checklist.no_trade_reason,
         executed_entry: checklist.executed_entry,
         entries: [],
+        no_entry_reasons: [],
+        no_entry_notes: "",
       });
 
       // Load entries
