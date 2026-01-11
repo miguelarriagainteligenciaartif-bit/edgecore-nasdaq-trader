@@ -208,6 +208,131 @@ export type Database = {
           },
         ]
       }
+      checklist_entries: {
+        Row: {
+          checklist_id: string
+          created_at: string
+          entry_model: string
+          entry_number: number
+          id: string
+          result: string | null
+        }
+        Insert: {
+          checklist_id: string
+          created_at?: string
+          entry_model: string
+          entry_number: number
+          id?: string
+          result?: string | null
+        }
+        Update: {
+          checklist_id?: string
+          created_at?: string
+          entry_model?: string
+          entry_number?: number
+          id?: string
+          result?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_entries_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "daily_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_checklists: {
+        Row: {
+          completion_percentage: number
+          created_at: string
+          daily_current_price_location: string | null
+          daily_fvg_count: number | null
+          daily_yesterday: string | null
+          date: string
+          entry_conditions_met: boolean | null
+          executed_entry: boolean | null
+          h1_context: string | null
+          h1_fvg_count: number | null
+          h1_poi_identified: boolean | null
+          h4_context: string | null
+          h4_fvg_count: number | null
+          h4_price_location: string | null
+          id: string
+          is_completed: boolean | null
+          monthly_current_price_location: string | null
+          monthly_fvg_count: number | null
+          monthly_previous_month: string | null
+          no_trade_reason: string | null
+          prep_30min_available: boolean | null
+          prep_schedule_clear: boolean | null
+          updated_at: string
+          user_id: string
+          weekly_current_price_location: string | null
+          weekly_fvg_count: number | null
+          weekly_previous_week: string | null
+        }
+        Insert: {
+          completion_percentage?: number
+          created_at?: string
+          daily_current_price_location?: string | null
+          daily_fvg_count?: number | null
+          daily_yesterday?: string | null
+          date: string
+          entry_conditions_met?: boolean | null
+          executed_entry?: boolean | null
+          h1_context?: string | null
+          h1_fvg_count?: number | null
+          h1_poi_identified?: boolean | null
+          h4_context?: string | null
+          h4_fvg_count?: number | null
+          h4_price_location?: string | null
+          id?: string
+          is_completed?: boolean | null
+          monthly_current_price_location?: string | null
+          monthly_fvg_count?: number | null
+          monthly_previous_month?: string | null
+          no_trade_reason?: string | null
+          prep_30min_available?: boolean | null
+          prep_schedule_clear?: boolean | null
+          updated_at?: string
+          user_id: string
+          weekly_current_price_location?: string | null
+          weekly_fvg_count?: number | null
+          weekly_previous_week?: string | null
+        }
+        Update: {
+          completion_percentage?: number
+          created_at?: string
+          daily_current_price_location?: string | null
+          daily_fvg_count?: number | null
+          daily_yesterday?: string | null
+          date?: string
+          entry_conditions_met?: boolean | null
+          executed_entry?: boolean | null
+          h1_context?: string | null
+          h1_fvg_count?: number | null
+          h1_poi_identified?: boolean | null
+          h4_context?: string | null
+          h4_fvg_count?: number | null
+          h4_price_location?: string | null
+          id?: string
+          is_completed?: boolean | null
+          monthly_current_price_location?: string | null
+          monthly_fvg_count?: number | null
+          monthly_previous_month?: string | null
+          no_trade_reason?: string | null
+          prep_30min_available?: boolean | null
+          prep_schedule_clear?: boolean | null
+          updated_at?: string
+          user_id?: string
+          weekly_current_price_location?: string | null
+          weekly_fvg_count?: number | null
+          weekly_previous_week?: string | null
+        }
+        Relationships: []
+      }
       economic_events: {
         Row: {
           actual: string | null

@@ -1,4 +1,4 @@
-import { BarChart3, FlaskConical, Activity, Save, Layers, Newspaper } from "lucide-react";
+import { BarChart3, FlaskConical, Activity, Save, Layers, Newspaper, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -97,6 +97,14 @@ export const Header = ({ userName }: HeaderProps) => {
               >
                 <Newspaper className="mr-2 h-4 w-4" />
                 Calendario USD
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/checklist")}
+              >
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Checklist
               </Button>
             </nav>
           </div>
