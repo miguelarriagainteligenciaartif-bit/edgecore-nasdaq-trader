@@ -12,6 +12,7 @@ import EdgecoreX5 from "./pages/EdgecoreX5";
 import FlipRotational from "./pages/FlipRotational";
 import SavedSimulations from "./pages/SavedSimulations";
 import ForexCalendar from "./pages/ForexCalendar";
+import Checklist from "./pages/Checklist";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ function App() {
             <Route path="/flip-rotational" element={<FlipRotational />} />
             <Route path="/saved-simulations" element={<SavedSimulations />} />
             <Route path="/forex-calendar" element={<ForexCalendar />} />
+            <Route path="/checklist" element={<Checklist />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
