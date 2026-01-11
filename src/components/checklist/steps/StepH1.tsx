@@ -1,8 +1,7 @@
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChecklistData } from "../ChecklistWizard";
-import { TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
+import { CheckCircle, Clock } from "lucide-react";
 
 interface StepH1Props {
   data: ChecklistData;
@@ -10,81 +9,90 @@ interface StepH1Props {
 }
 
 export const StepH1 = ({ data, updateData }: StepH1Props) => {
+  const allChecked = data.h1_confluences_verified && data.h1_zones_identified && data.h1_direction_determined;
+
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Cuál es el contexto en 1H?
-        </Label>
-        <RadioGroup
-          value={data.h1_context || ""}
-          onValueChange={(value) => updateData({ h1_context: value })}
-          className="grid grid-cols-3 gap-4"
-        >
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-success cursor-pointer has-[:checked]:border-success has-[:checked]:bg-success/10">
-            <RadioGroupItem value="bullish" id="h1-bullish" className="sr-only" />
-            <Label htmlFor="h1-bullish" className="cursor-pointer flex flex-col items-center gap-2">
-              <TrendingUp className="h-8 w-8 text-success" />
-              <span>Alcista</span>
-            </Label>
-          </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-destructive cursor-pointer has-[:checked]:border-destructive has-[:checked]:bg-destructive/10">
-            <RadioGroupItem value="bearish" id="h1-bearish" className="sr-only" />
-            <Label htmlFor="h1-bearish" className="cursor-pointer flex flex-col items-center gap-2">
-              <TrendingDown className="h-8 w-8 text-destructive" />
-              <span>Bajista</span>
-            </Label>
-          </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-muted-foreground cursor-pointer has-[:checked]:border-muted-foreground has-[:checked]:bg-muted/50">
-            <RadioGroupItem value="ranging" id="h1-ranging" className="sr-only" />
-            <Label htmlFor="h1-ranging" className="cursor-pointer flex flex-col items-center gap-2">
-              <Minus className="h-8 w-8 text-muted-foreground" />
-              <span>Rango</span>
-            </Label>
-          </div>
-        </RadioGroup>
+      {/* Header */}
+      <div className="text-center mb-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Clock className="h-5 w-5 text-primary" />
+          <p className="text-sm font-medium text-primary">Análisis entre 9:27 - 9:29 AM (NY)</p>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Cuántos FVG identificados en 1H?
-        </Label>
-        <Input
-          type="number"
-          min={0}
-          max={20}
-          placeholder="0"
-          value={data.h1_fvg_count ?? ""}
-          onChange={(e) => updateData({ h1_fvg_count: e.target.value ? parseInt(e.target.value) : null })}
-          className="w-32"
-        />
+      {/* Prohibido Dudar */}
+      <div className="text-center mb-4">
+        <p className="text-lg font-bold text-destructive">PROHIBIDO DUDAR</p>
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-base font-medium">
-          ¿Has identificado un POI (Point of Interest) claro?
-        </Label>
-        <RadioGroup
-          value={data.h1_poi_identified === null ? "" : data.h1_poi_identified ? "yes" : "no"}
-          onValueChange={(value) => updateData({ h1_poi_identified: value === "yes" })}
-          className="flex gap-4"
-        >
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-success cursor-pointer has-[:checked]:border-success has-[:checked]:bg-success/10 flex-1">
-            <RadioGroupItem value="yes" id="poi-yes" className="sr-only" />
-            <Label htmlFor="poi-yes" className="cursor-pointer flex flex-col items-center gap-2">
-              <Target className="h-8 w-8 text-success" />
-              <span>Sí, POI identificado</span>
+      <div className="space-y-5">
+        {/* Checkbox 1: Confluences */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="h1-confluences"
+            checked={data.h1_confluences_verified || false}
+            onCheckedChange={(checked) => updateData({ h1_confluences_verified: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="h1-confluences" className="text-base font-medium cursor-pointer">
+              Verificar confluencias con zonas de diario y H4
             </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              ¿Las zonas marcadas en diario y H4 coinciden?
+            </p>
           </div>
-          <div className="flex flex-col items-center p-4 rounded-lg border border-border hover:border-destructive cursor-pointer has-[:checked]:border-destructive has-[:checked]:bg-destructive/10 flex-1">
-            <RadioGroupItem value="no" id="poi-no" className="sr-only" />
-            <Label htmlFor="poi-no" className="cursor-pointer flex flex-col items-center gap-2">
-              <Minus className="h-8 w-8 text-destructive" />
-              <span>No, sin POI claro</span>
+        </div>
+
+        {/* Checkbox 2: H1 Zones */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="h1-zones"
+            checked={data.h1_zones_identified || false}
+            onCheckedChange={(checked) => updateData({ h1_zones_identified: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="h1-zones" className="text-base font-medium cursor-pointer">
+              Identificar zonas de 1H cercanas al precio actual
             </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              ¿Qué zonas de interés hay cerca del precio ahora?
+            </p>
           </div>
-        </RadioGroup>
+        </div>
+
+        {/* Checkbox 3: Direction */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="h1-direction"
+            checked={data.h1_direction_determined || false}
+            onCheckedChange={(checked) => updateData({ h1_direction_determined: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="h1-direction" className="text-base font-medium cursor-pointer">
+              Determinar la dirección del precio con la vela de H1 entre las 9:27 y 9:29 hora New York
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Observar si tiene más mecha por la parte de arriba o por la parte de abajo
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Success state */}
+      {allChecked && (
+        <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 text-success" />
+            <div>
+              <p className="font-bold text-success">Análisis 1H completado</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
