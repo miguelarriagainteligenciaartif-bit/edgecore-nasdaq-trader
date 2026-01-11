@@ -1,7 +1,7 @@
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChecklistData } from "../ChecklistWizard";
-import { AlertTriangle, CheckCircle } from "lucide-react";
+import { CheckCircle, Sparkles } from "lucide-react";
 
 interface StepPrepProps {
   data: ChecklistData;
@@ -9,74 +9,78 @@ interface StepPrepProps {
 }
 
 export const StepPrep = ({ data, updateData }: StepPrepProps) => {
-  const showWarning = data.prep_schedule_clear === false || data.prep_30min_available === false;
+  const allChecked = data.prep_workspace_clean && data.prep_aromatherapy && data.prep_best_trader;
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="space-y-3">
-          <Label className="text-base font-medium">
-            ¿Tienes la agenda libre durante la sesión americana?
-          </Label>
-          <RadioGroup
-            value={data.prep_schedule_clear === null ? "" : data.prep_schedule_clear ? "yes" : "no"}
-            onValueChange={(value) => updateData({ prep_schedule_clear: value === "yes" })}
-            className="flex gap-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="yes" id="schedule-yes" />
-              <Label htmlFor="schedule-yes" className="cursor-pointer">Sí</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="no" id="schedule-no" />
-              <Label htmlFor="schedule-no" className="cursor-pointer">No</Label>
-            </div>
-          </RadioGroup>
+      <div className="text-center mb-6">
+        <h2 className="text-xl font-bold text-primary mb-2">El poder de la espera</h2>
+        <p className="text-muted-foreground">Preparación mental antes de operar</p>
+      </div>
+
+      <div className="space-y-5">
+        {/* Checkbox 1: Workspace */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="prep-workspace"
+            checked={data.prep_workspace_clean || false}
+            onCheckedChange={(checked) => updateData({ prep_workspace_clean: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="prep-workspace" className="text-base font-medium cursor-pointer">
+              Limpiar y ordenar el espacio de trabajo
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              <Sparkles className="h-3 w-3 inline mr-1" />
+              Una acción sencilla incrementa un 94% la probabilidad de éxito en la ejecución
+            </p>
+          </div>
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-base font-medium">
-            ¿Dispones de al menos 30 minutos para el análisis?
-          </Label>
-          <RadioGroup
-            value={data.prep_30min_available === null ? "" : data.prep_30min_available ? "yes" : "no"}
-            onValueChange={(value) => updateData({ prep_30min_available: value === "yes" })}
-            className="flex gap-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="yes" id="time-yes" />
-              <Label htmlFor="time-yes" className="cursor-pointer">Sí</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="no" id="time-no" />
-              <Label htmlFor="time-no" className="cursor-pointer">No</Label>
-            </div>
-          </RadioGroup>
+        {/* Checkbox 2: Aromatherapy */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="prep-aromatherapy"
+            checked={data.prep_aromatherapy || false}
+            onCheckedChange={(checked) => updateData({ prep_aromatherapy: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="prep-aromatherapy" className="text-base font-medium cursor-pointer">
+              Activar aromaterapia (difusor o incienso)
+            </Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              <Sparkles className="h-3 w-3 inline mr-1" />
+              Científicamente comprobado que mejora el enfoque durante la sesión
+            </p>
+          </div>
+        </div>
+
+        {/* Checkbox 3: Best Trader */}
+        <div className="flex items-start space-x-3 p-4 rounded-lg bg-secondary/30 border border-border">
+          <Checkbox
+            id="prep-best-trader"
+            checked={data.prep_best_trader || false}
+            onCheckedChange={(checked) => updateData({ prep_best_trader: checked === true })}
+            className="mt-0.5"
+          />
+          <div className="flex-1">
+            <Label htmlFor="prep-best-trader" className="text-base font-medium cursor-pointer">
+              Ser el mejor trader ejecutando nuestro sistema
+            </Label>
+          </div>
         </div>
       </div>
 
-      {showWarning && (
-        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-6 w-6 text-destructive" />
-            <div>
-              <p className="font-bold text-destructive">PROHIBIDO OPERAR</p>
-              <p className="text-sm text-muted-foreground">
-                Las condiciones de preparación no están cumplidas. No continúes con el análisis.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {data.prep_schedule_clear === true && data.prep_30min_available === true && (
+      {allChecked && (
         <div className="p-4 rounded-lg bg-success/10 border border-success/30">
           <div className="flex items-center gap-3">
             <CheckCircle className="h-6 w-6 text-success" />
             <div>
-              <p className="font-bold text-success">Preparación OK</p>
+              <p className="font-bold text-success">Preparación completada</p>
               <p className="text-sm text-muted-foreground">
-                Puedes continuar con el análisis.
+                Estás listo para continuar con el análisis.
               </p>
             </div>
           </div>

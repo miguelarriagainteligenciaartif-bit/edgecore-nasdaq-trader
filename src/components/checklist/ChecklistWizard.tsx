@@ -16,8 +16,9 @@ import { StepExecutionLog } from "./steps/StepExecutionLog";
 
 export interface ChecklistData {
   // Step 1: Prep
-  prep_schedule_clear: boolean | null;
-  prep_30min_available: boolean | null;
+  prep_workspace_clean: boolean | null;
+  prep_aromatherapy: boolean | null;
+  prep_best_trader: boolean | null;
   
   // Step 2: Monthly
   monthly_previous_month: string | null;
@@ -69,8 +70,9 @@ const STEPS = [
 ];
 
 const initialData: ChecklistData = {
-  prep_schedule_clear: null,
-  prep_30min_available: null,
+  prep_workspace_clean: null,
+  prep_aromatherapy: null,
+  prep_best_trader: null,
   monthly_previous_month: null,
   monthly_fvg_count: null,
   monthly_current_price_location: null,
@@ -117,8 +119,9 @@ export const ChecklistWizard = () => {
     if (checklist && !error) {
       setExistingChecklistId(checklist.id);
       setData({
-        prep_schedule_clear: checklist.prep_schedule_clear,
-        prep_30min_available: checklist.prep_30min_available,
+        prep_workspace_clean: checklist.prep_schedule_clear,
+        prep_aromatherapy: checklist.prep_30min_available,
+        prep_best_trader: null,
         monthly_previous_month: checklist.monthly_previous_month,
         monthly_fvg_count: checklist.monthly_fvg_count,
         monthly_current_price_location: checklist.monthly_current_price_location,
@@ -165,9 +168,10 @@ export const ChecklistWizard = () => {
     let total = 0;
 
     // Step 1
-    total += 2;
-    if (data.prep_schedule_clear !== null) completed++;
-    if (data.prep_30min_available !== null) completed++;
+    total += 3;
+    if (data.prep_workspace_clean) completed++;
+    if (data.prep_aromatherapy) completed++;
+    if (data.prep_best_trader) completed++;
 
     // Step 2
     total += 3;
@@ -230,8 +234,8 @@ export const ChecklistWizard = () => {
       user_id: user.id,
       date: todayDate,
       completion_percentage: completionPercentage,
-      prep_schedule_clear: data.prep_schedule_clear,
-      prep_30min_available: data.prep_30min_available,
+      prep_schedule_clear: data.prep_workspace_clean,
+      prep_30min_available: data.prep_aromatherapy,
       monthly_previous_month: data.monthly_previous_month,
       monthly_fvg_count: data.monthly_fvg_count,
       monthly_current_price_location: data.monthly_current_price_location,
@@ -318,7 +322,7 @@ export const ChecklistWizard = () => {
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 1:
-        return data.prep_schedule_clear !== null && data.prep_30min_available !== null;
+        return data.prep_workspace_clean && data.prep_aromatherapy && data.prep_best_trader;
       case 2:
         return !!data.monthly_previous_month && data.monthly_fvg_count !== null && !!data.monthly_current_price_location;
       case 3:
@@ -339,10 +343,6 @@ export const ChecklistWizard = () => {
   };
 
   const shouldSkipToEnd = (): boolean => {
-    // Skip steps if prep conditions not met
-    if (currentStep === 1 && (data.prep_schedule_clear === false || data.prep_30min_available === false)) {
-      return true;
-    }
     // Skip to end if no entry conditions met
     if (currentStep === 7 && data.entry_conditions_met === false) {
       return true;
