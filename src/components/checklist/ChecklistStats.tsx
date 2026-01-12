@@ -27,14 +27,22 @@ interface StatsData {
   avgCompletion: number;
   tradingDays: number;
   noTradeDays: number;
-  totalEntries: number;
-  totalTPs: number;
-  totalSLs: number;
-  winRate: number;
+  // Checklist entries stats
+  checklistEntries: number;
+  checklistTPs: number;
+  checklistSLs: number;
+  checklistWinRate: number;
+  // Dashboard trades stats (correlated with checklists)
+  dashboardTrades: number;
+  dashboardTPs: number;
+  dashboardSLs: number;
+  dashboardWinRate: number;
+  // Correlation: discipline vs dashboard trades
   disciplineCorrelation: {
-    high: { trades: number; winRate: number };
-    medium: { trades: number; winRate: number };
-    low: { trades: number; winRate: number };
+    high: { trades: number; winRate: number; pnl: number };
+    medium: { trades: number; winRate: number; pnl: number };
+    low: { trades: number; winRate: number; pnl: number };
+    noChecklist: { trades: number; winRate: number; pnl: number };
   };
 }
 
@@ -50,52 +58,91 @@ export const ChecklistStats = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Fetch all checklists with entries
-    const { data: checklists, error } = await supabase
+    // Fetch all checklists
+    const { data: checklists, error: checklistError } = await supabase
       .from('daily_checklists')
       .select('*')
       .eq('user_id', user.id);
 
-    if (error || !checklists) {
+    // Fetch all dashboard trades
+    const { data: trades, error: tradesError } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (checklistError) {
       setLoading(false);
       return;
     }
 
-    // Fetch all entries
-    const checklistIds = checklists.map(c => c.id);
-    const { data: entries } = await supabase
-      .from('checklist_entries')
-      .select('*')
-      .in('checklist_id', checklistIds);
+    const allChecklists = checklists || [];
+    const allTrades = trades || [];
 
-    // Calculate stats
-    const totalDays = checklists.length;
-    const completedDays = checklists.filter(c => c.is_completed).length;
+    // Fetch all checklist entries
+    const checklistIds = allChecklists.map(c => c.id);
+    const { data: entries } = checklistIds.length > 0 
+      ? await supabase.from('checklist_entries').select('*').in('checklist_id', checklistIds)
+      : { data: [] };
+
+    // Calculate basic checklist stats
+    const totalDays = allChecklists.length;
+    const completedDays = allChecklists.filter(c => c.is_completed).length;
     const avgCompletion = totalDays > 0 
-      ? Math.round(checklists.reduce((acc, c) => acc + c.completion_percentage, 0) / totalDays)
+      ? Math.round(allChecklists.reduce((acc, c) => acc + c.completion_percentage, 0) / totalDays)
       : 0;
-    const tradingDays = checklists.filter(c => c.executed_entry === true).length;
-    const noTradeDays = checklists.filter(c => c.entry_conditions_met === false || c.executed_entry === false).length;
+    const tradingDays = allChecklists.filter(c => c.executed_entry === true).length;
+    const noTradeDays = allChecklists.filter(c => c.entry_conditions_met === false || c.executed_entry === false).length;
 
+    // Checklist entries stats
     const allEntries = entries || [];
     const completedEntries = allEntries.filter(e => e.result !== null);
-    const totalTPs = allEntries.filter(e => e.result === 'TP').length;
-    const totalSLs = allEntries.filter(e => e.result === 'SL').length;
-    const winRate = completedEntries.length > 0 
-      ? Math.round((totalTPs / completedEntries.length) * 100)
+    const checklistTPs = allEntries.filter(e => e.result === 'TP').length;
+    const checklistSLs = allEntries.filter(e => e.result === 'SL').length;
+    const checklistWinRate = completedEntries.length > 0 
+      ? Math.round((checklistTPs / completedEntries.length) * 100)
       : 0;
 
-    // Calculate discipline correlation
-    const highDiscipline = checklists.filter(c => c.completion_percentage >= 80);
-    const mediumDiscipline = checklists.filter(c => c.completion_percentage >= 50 && c.completion_percentage < 80);
-    const lowDiscipline = checklists.filter(c => c.completion_percentage < 50);
+    // Create a map of date -> completion_percentage for quick lookup
+    const checklistByDate = new Map<string, number>();
+    allChecklists.forEach(c => {
+      checklistByDate.set(c.date, c.completion_percentage);
+    });
 
-    const calculateGroupWinRate = (checklistGroup: typeof checklists) => {
-      const ids = checklistGroup.map(c => c.id);
-      const groupEntries = allEntries.filter(e => ids.includes(e.checklist_id) && e.result !== null);
-      const groupTPs = groupEntries.filter(e => e.result === 'TP').length;
-      return groupEntries.length > 0 ? Math.round((groupTPs / groupEntries.length) * 100) : 0;
+    // Categorize dashboard trades by checklist discipline level
+    const highDisciplineTrades: typeof allTrades = [];
+    const mediumDisciplineTrades: typeof allTrades = [];
+    const lowDisciplineTrades: typeof allTrades = [];
+    const noChecklistTrades: typeof allTrades = [];
+
+    allTrades.forEach(trade => {
+      const completion = checklistByDate.get(trade.date);
+      if (completion === undefined) {
+        noChecklistTrades.push(trade);
+      } else if (completion >= 80) {
+        highDisciplineTrades.push(trade);
+      } else if (completion >= 50) {
+        mediumDisciplineTrades.push(trade);
+      } else {
+        lowDisciplineTrades.push(trade);
+      }
+    });
+
+    const calculateGroupStats = (groupTrades: typeof allTrades) => {
+      const tps = groupTrades.filter(t => t.result_type === 'TP').length;
+      const sls = groupTrades.filter(t => t.result_type === 'SL').length;
+      const total = tps + sls;
+      const winRate = total > 0 ? Math.round((tps / total) * 100) : 0;
+      const pnl = groupTrades.reduce((acc, t) => acc + Number(t.result_dollars), 0);
+      return { trades: groupTrades.length, winRate, pnl };
     };
+
+    // Dashboard trades overall stats
+    const dashboardTPs = allTrades.filter(t => t.result_type === 'TP').length;
+    const dashboardSLs = allTrades.filter(t => t.result_type === 'SL').length;
+    const dashboardTotal = dashboardTPs + dashboardSLs;
+    const dashboardWinRate = dashboardTotal > 0 
+      ? Math.round((dashboardTPs / dashboardTotal) * 100)
+      : 0;
 
     setStats({
       totalDays,
@@ -103,23 +150,19 @@ export const ChecklistStats = () => {
       avgCompletion,
       tradingDays,
       noTradeDays,
-      totalEntries: allEntries.length,
-      totalTPs,
-      totalSLs,
-      winRate,
+      checklistEntries: allEntries.length,
+      checklistTPs,
+      checklistSLs,
+      checklistWinRate,
+      dashboardTrades: allTrades.length,
+      dashboardTPs,
+      dashboardSLs,
+      dashboardWinRate,
       disciplineCorrelation: {
-        high: { 
-          trades: highDiscipline.length, 
-          winRate: calculateGroupWinRate(highDiscipline) 
-        },
-        medium: { 
-          trades: mediumDiscipline.length, 
-          winRate: calculateGroupWinRate(mediumDiscipline) 
-        },
-        low: { 
-          trades: lowDiscipline.length, 
-          winRate: calculateGroupWinRate(lowDiscipline) 
-        },
+        high: calculateGroupStats(highDisciplineTrades),
+        medium: calculateGroupStats(mediumDisciplineTrades),
+        low: calculateGroupStats(lowDisciplineTrades),
+        noChecklist: calculateGroupStats(noChecklistTrades),
       },
     });
 
@@ -154,16 +197,25 @@ export const ChecklistStats = () => {
       name: "Alta (≥80%)",
       winRate: stats.disciplineCorrelation.high.winRate,
       trades: stats.disciplineCorrelation.high.trades,
+      pnl: stats.disciplineCorrelation.high.pnl,
     },
     {
       name: "Media (50-79%)",
       winRate: stats.disciplineCorrelation.medium.winRate,
       trades: stats.disciplineCorrelation.medium.trades,
+      pnl: stats.disciplineCorrelation.medium.pnl,
     },
     {
       name: "Baja (<50%)",
       winRate: stats.disciplineCorrelation.low.winRate,
       trades: stats.disciplineCorrelation.low.trades,
+      pnl: stats.disciplineCorrelation.low.pnl,
+    },
+    {
+      name: "Sin Checklist",
+      winRate: stats.disciplineCorrelation.noChecklist.winRate,
+      trades: stats.disciplineCorrelation.noChecklist.trades,
+      pnl: stats.disciplineCorrelation.noChecklist.pnl,
     },
   ];
 
@@ -226,27 +278,28 @@ export const ChecklistStats = () => {
                 <Target className="h-5 w-5 text-success" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.winRate}%</p>
-                <p className="text-xs text-muted-foreground">Win Rate global</p>
+                <p className="text-2xl font-bold">{stats.dashboardWinRate}%</p>
+                <p className="text-xs text-muted-foreground">Win Rate Dashboard</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Trading Stats */}
+      {/* Trading Stats - Two sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Checklist Entries Stats */}
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              Resumen de Trading
+              Entradas Checklist
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Días operados</span>
+                <span className="text-muted-foreground">Días operados (checklist)</span>
                 <span className="font-bold">{stats.tradingDays}</span>
               </div>
               <div className="flex justify-between items-center">
@@ -254,8 +307,8 @@ export const ChecklistStats = () => {
                 <span className="font-bold">{stats.noTradeDays}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total entradas</span>
-                <span className="font-bold">{stats.totalEntries}</span>
+                <span className="text-muted-foreground">Total entradas (checklist)</span>
+                <span className="font-bold">{stats.checklistEntries}</span>
               </div>
               <div className="h-px bg-border my-2" />
               <div className="flex justify-between items-center">
@@ -263,37 +316,87 @@ export const ChecklistStats = () => {
                   <TrendingUp className="h-4 w-4 text-success" />
                   Take Profits
                 </span>
-                <span className="font-bold text-success">{stats.totalTPs}</span>
+                <span className="font-bold text-success">{stats.checklistTPs}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="flex items-center gap-2">
                   <TrendingDown className="h-4 w-4 text-destructive" />
                   Stop Losses
                 </span>
-                <span className="font-bold text-destructive">{stats.totalSLs}</span>
+                <span className="font-bold text-destructive">{stats.checklistSLs}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Win Rate Checklist</span>
+                <span className="font-bold text-primary">{stats.checklistWinRate}%</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Dashboard Trades Stats */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Trades Dashboard
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total trades</span>
+                <span className="font-bold">{stats.dashboardTrades}</span>
+              </div>
+              <div className="h-px bg-border my-2" />
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                  Take Profits
+                </span>
+                <span className="font-bold text-success">{stats.dashboardTPs}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                  Stop Losses
+                </span>
+                <span className="font-bold text-destructive">{stats.dashboardSLs}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Win Rate Dashboard</span>
+                <span className="font-bold text-primary">{stats.dashboardWinRate}%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Discipline Correlation */}
+      <div className="grid grid-cols-1 gap-6">
+
         {/* Discipline Correlation Chart */}
         <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-lg">Correlación Disciplina vs Win Rate</CardTitle>
+            <CardTitle className="text-lg">Correlación Disciplina Checklist vs Trades Dashboard</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={correlationData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis dataKey="name" type="category" width={100} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <YAxis dataKey="name" type="category" width={110} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number, name: string) => [`${value}%`, 'Win Rate']}
+                  formatter={(value: number, name: string, props: { payload: typeof correlationData[0] }) => {
+                    if (name === 'winRate') {
+                      return [`${value}%`, 'Win Rate'];
+                    }
+                    return [value, name];
+                  }}
                   labelFormatter={(label) => `Disciplina: ${label}`}
                 />
                 <Bar dataKey="winRate" radius={[0, 4, 4, 0]}>
@@ -303,8 +406,26 @@ export const ChecklistStats = () => {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            
+            {/* Detailed breakdown */}
+            <div className="mt-4 space-y-2">
+              {correlationData.map((item, index) => (
+                <div key={index} className="flex justify-between items-center text-sm p-2 rounded bg-muted/50">
+                  <span className="font-medium">{item.name}</span>
+                  <div className="flex gap-4">
+                    <span className="text-muted-foreground">
+                      {item.trades} trades
+                    </span>
+                    <span className={item.pnl >= 0 ? "text-success" : "text-destructive"}>
+                      ${item.pnl.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
             <p className="text-xs text-muted-foreground text-center mt-4">
-              Este gráfico muestra cómo tu % de completitud del checklist correlaciona con tus resultados.
+              Este gráfico correlaciona el % de completitud del checklist con los resultados de tus trades del Dashboard (por fecha).
             </p>
           </CardContent>
         </Card>
