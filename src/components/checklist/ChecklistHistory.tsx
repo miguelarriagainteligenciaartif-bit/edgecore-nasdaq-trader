@@ -6,7 +6,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown } from "lucide-react";
+import { Calendar, CheckCircle, XCircle, Clock, TrendingUp, TrendingDown, Pencil } from "lucide-react";
+import { ChecklistEditDialog } from "./ChecklistEditDialog";
+
+interface ChecklistEntry {
+  id: string;
+  entry_number: number;
+  entry_model: string;
+  result: string | null;
+}
 
 interface ChecklistRecord {
   id: string;
@@ -15,15 +23,13 @@ interface ChecklistRecord {
   entry_conditions_met: boolean | null;
   executed_entry: boolean | null;
   is_completed: boolean;
-  entries: Array<{
-    entry_model: string;
-    result: string | null;
-  }>;
+  entries: ChecklistEntry[];
 }
 
 export const ChecklistHistory = () => {
   const [checklists, setChecklists] = useState<ChecklistRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingChecklist, setEditingChecklist] = useState<ChecklistRecord | null>(null);
 
   useEffect(() => {
     loadChecklists();
@@ -46,8 +52,9 @@ export const ChecklistHistory = () => {
         data.map(async (checklist) => {
           const { data: entries } = await supabase
             .from('checklist_entries')
-            .select('entry_model, result')
-            .eq('checklist_id', checklist.id);
+            .select('id, entry_number, entry_model, result')
+            .eq('checklist_id', checklist.id)
+            .order('entry_number', { ascending: true });
           
           return {
             ...checklist,
@@ -79,109 +86,135 @@ export const ChecklistHistory = () => {
   }
 
   return (
-    <Card className="bg-card border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
-          Historial de Operaciones
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {checklists.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">
-            No hay checklists registrados aún.
-          </p>
-        ) : (
-          <ScrollArea className="h-[500px] pr-4">
-            <div className="space-y-3">
-              {checklists.map((checklist) => {
-                const resultSummary = getResultSummary(checklist.entries);
-                const formattedDate = format(new Date(checklist.date), "EEEE, d 'de' MMMM yyyy", { locale: es });
+    <>
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            Historial de Operaciones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {checklists.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No hay checklists registrados aún.
+            </p>
+          ) : (
+            <ScrollArea className="h-[500px] pr-4">
+              <div className="space-y-3">
+                {checklists.map((checklist) => {
+                  const resultSummary = getResultSummary(checklist.entries);
+                  const formattedDate = format(new Date(checklist.date), "EEEE, d 'de' MMMM yyyy", { locale: es });
 
-                return (
-                  <Card key={checklist.id} className="bg-secondary/30 border-border">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <p className="font-medium capitalize">{formattedDate}</p>
-                          
-                          <div className="flex items-center gap-3">
-                            <Badge
-                              variant={checklist.completion_percentage === 100 ? "default" : "secondary"}
-                              className={checklist.completion_percentage === 100 ? "bg-success" : ""}
-                            >
-                              {checklist.completion_percentage}% completado
-                            </Badge>
+                  return (
+                    <Card key={checklist.id} className="bg-secondary/30 border-border">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1">
+                            <p className="font-medium capitalize">{formattedDate}</p>
                             
-                            {checklist.entry_conditions_met === true && (
-                              <Badge variant="outline" className="border-success text-success">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Condiciones OK
+                            <div className="flex items-center gap-3">
+                              <Badge
+                                variant={checklist.completion_percentage === 100 ? "default" : "secondary"}
+                                className={checklist.completion_percentage === 100 ? "bg-success" : ""}
+                              >
+                                {checklist.completion_percentage}% completado
                               </Badge>
+                              
+                              {checklist.entry_conditions_met === true && (
+                                <Badge variant="outline" className="border-success text-success">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Condiciones OK
+                                </Badge>
+                              )}
+                              {checklist.entry_conditions_met === false && (
+                                <Badge variant="outline" className="border-destructive text-destructive">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  No operó
+                                </Badge>
+                              )}
+                            </div>
+
+                            {resultSummary && (
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="text-muted-foreground">
+                                  {resultSummary.total} entrada{resultSummary.total > 1 ? 's' : ''}:
+                                </span>
+                                {resultSummary.tps > 0 && (
+                                  <span className="flex items-center gap-1 text-success">
+                                    <TrendingUp className="h-3 w-3" />
+                                    {resultSummary.tps} TP
+                                  </span>
+                                )}
+                                {resultSummary.sls > 0 && (
+                                  <span className="flex items-center gap-1 text-destructive">
+                                    <TrendingDown className="h-3 w-3" />
+                                    {resultSummary.sls} SL
+                                  </span>
+                                )}
+                                {resultSummary.pending > 0 && (
+                                  <span className="flex items-center gap-1 text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {resultSummary.pending} pendiente
+                                  </span>
+                                )}
+                              </div>
                             )}
-                            {checklist.entry_conditions_met === false && (
-                              <Badge variant="outline" className="border-destructive text-destructive">
-                                <XCircle className="h-3 w-3 mr-1" />
-                                No operó
-                              </Badge>
+
+                            {checklist.entries.length > 0 && (
+                              <div className="flex gap-2 flex-wrap">
+                                {checklist.entries.map((entry, idx) => (
+                                  <Badge
+                                    key={idx}
+                                    variant="outline"
+                                    className={
+                                      entry.result === 'TP'
+                                        ? 'border-success text-success'
+                                        : entry.result === 'SL'
+                                        ? 'border-destructive text-destructive'
+                                        : 'border-muted-foreground text-muted-foreground'
+                                    }
+                                  >
+                                    {entry.entry_model}: {entry.result || 'Pendiente'}
+                                  </Badge>
+                                ))}
+                              </div>
                             )}
                           </div>
 
-                          {resultSummary && (
-                            <div className="flex items-center gap-4 text-sm">
-                              <span className="text-muted-foreground">
-                                {resultSummary.total} entrada{resultSummary.total > 1 ? 's' : ''}:
-                              </span>
-                              {resultSummary.tps > 0 && (
-                                <span className="flex items-center gap-1 text-success">
-                                  <TrendingUp className="h-3 w-3" />
-                                  {resultSummary.tps} TP
-                                </span>
-                              )}
-                              {resultSummary.sls > 0 && (
-                                <span className="flex items-center gap-1 text-destructive">
-                                  <TrendingDown className="h-3 w-3" />
-                                  {resultSummary.sls} SL
-                                </span>
-                              )}
-                              {resultSummary.pending > 0 && (
-                                <span className="flex items-center gap-1 text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {resultSummary.pending} pendiente
-                                </span>
-                              )}
-                            </div>
-                          )}
-
+                          {/* Edit button - only show if there are entries */}
                           {checklist.entries.length > 0 && (
-                            <div className="flex gap-2 flex-wrap">
-                              {checklist.entries.map((entry, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant="outline"
-                                  className={
-                                    entry.result === 'TP'
-                                      ? 'border-success text-success'
-                                      : entry.result === 'SL'
-                                      ? 'border-destructive text-destructive'
-                                      : 'border-muted-foreground text-muted-foreground'
-                                  }
-                                >
-                                  {entry.entry_model}: {entry.result || 'Pendiente'}
-                                </Badge>
-                              ))}
-                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="ml-2 shrink-0"
+                              onClick={() => setEditingChecklist(checklist)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                           )}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      {editingChecklist && (
+        <ChecklistEditDialog
+          open={!!editingChecklist}
+          onOpenChange={(open) => !open && setEditingChecklist(null)}
+          checklistId={editingChecklist.id}
+          date={format(new Date(editingChecklist.date), "d 'de' MMMM yyyy", { locale: es })}
+          entries={editingChecklist.entries}
+          onUpdated={loadChecklists}
+        />
+      )}
+    </>
   );
 };
