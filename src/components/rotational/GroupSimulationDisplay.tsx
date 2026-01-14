@@ -8,8 +8,16 @@ import {
   Wallet,
   Target,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  Info
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   GroupRotationalState,
   getBrokerSummary
@@ -214,40 +222,88 @@ export const GroupSimulationDisplay = ({ state, onTradeResult }: GroupSimulation
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {group.accounts.map(account => {
-                      const pnl = account.currentBalance - account.initialBalance;
-                      const pnlPercent = (pnl / account.initialBalance) * 100;
-                      const isProfit = pnl >= 0;
-                      const hasWithdrawals = account.withdrawals.length > 0;
-                      const targetReached = pnlPercent >= state.config.profitTargetPercent;
+                    <TooltipProvider>
+                      {group.accounts.map(account => {
+                        const pnl = account.currentBalance - account.initialBalance;
+                        const pnlPercent = (pnl / account.initialBalance) * 100;
+                        const isProfit = pnl >= 0;
+                        const hasWithdrawals = account.withdrawals.length > 0;
+                        const targetReached = pnlPercent >= state.config.profitTargetPercent;
+                        
+                        // Apex withdrawal info
+                        const isFutures = group.brokerType === 'futures';
+                        const MIN_TRADES_FOR_WITHDRAWAL = 8;
+                        const tradesForWithdrawal = account.tradesSinceLastWithdrawal || 0;
+                        const tradesRemaining = Math.max(0, MIN_TRADES_FOR_WITHDRAWAL - tradesForWithdrawal);
+                        const canWithdraw = tradesRemaining === 0;
+                        const withdrawalThreshold = group.withdrawalThreshold || (account.initialBalance + 4100);
+                        const atThreshold = account.currentBalance >= withdrawalThreshold;
 
-                      return (
-                        <div 
-                          key={account.id}
-                          className={`p-2 rounded text-xs ${
-                            isProfit ? 'bg-emerald-500/10' : 'bg-red-500/10'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium truncate">{account.name}</span>
-                            {hasWithdrawals && (
-                              <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                        return (
+                          <div 
+                            key={account.id}
+                            className={`p-2 rounded text-xs ${
+                              isProfit ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium truncate">{account.name}</span>
+                              {hasWithdrawals && (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                              )}
+                            </div>
+                            <div className="text-muted-foreground">
+                              ${account.currentBalance.toLocaleString()}
+                            </div>
+                            <div className={isProfit ? 'text-emerald-500' : 'text-red-500'}>
+                              {isProfit ? '+' : ''}{pnlPercent.toFixed(1)}%
+                            </div>
+                            
+                            {/* Indicador de días para retiro - Solo Apex/Futures */}
+                            {isFutures && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className={`mt-1 flex items-center gap-1 ${
+                                    canWithdraw && atThreshold 
+                                      ? 'text-emerald-500' 
+                                      : canWithdraw 
+                                        ? 'text-blue-400' 
+                                        : 'text-amber-500'
+                                  }`}>
+                                    <Clock className="h-3 w-3" />
+                                    <span>
+                                      {canWithdraw 
+                                        ? atThreshold 
+                                          ? '¡Listo!' 
+                                          : `${tradesForWithdrawal}/8 ✓`
+                                        : `${tradesForWithdrawal}/8`
+                                      }
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <div className="text-xs space-y-1">
+                                    <p className="font-medium">Reglas de retiro Apex:</p>
+                                    <p>• Mínimo 8 días de trading: {tradesForWithdrawal}/8 {canWithdraw ? '✓' : `(faltan ${tradesRemaining})`}</p>
+                                    <p>• Umbral: ${withdrawalThreshold.toLocaleString()} {atThreshold ? '✓' : `(faltan $${(withdrawalThreshold - account.currentBalance).toLocaleString()})`}</p>
+                                    <p>• Retiro: ${group.withdrawalAmount?.toLocaleString() || '2,000'}</p>
+                                    {canWithdraw && atThreshold && (
+                                      <p className="text-emerald-500 font-medium">¡Puede retirar en el próximo TP!</p>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            
+                            {account.withdrawals.length > 0 && (
+                              <div className="text-emerald-500 mt-1">
+                                Retirado: ${account.withdrawals.reduce((s, w) => s + w.amount, 0).toLocaleString()}
+                              </div>
                             )}
                           </div>
-                          <div className="text-muted-foreground">
-                            ${account.currentBalance.toLocaleString()}
-                          </div>
-                          <div className={isProfit ? 'text-emerald-500' : 'text-red-500'}>
-                            {isProfit ? '+' : ''}{pnlPercent.toFixed(1)}%
-                          </div>
-                          {account.withdrawals.length > 0 && (
-                            <div className="text-emerald-500 mt-1">
-                              Retirado: ${account.withdrawals.reduce((s, w) => s + w.amount, 0).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </TooltipProvider>
                   </div>
                 </div>
               );
