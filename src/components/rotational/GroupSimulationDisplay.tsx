@@ -233,7 +233,10 @@ export const GroupSimulationDisplay = ({ state, onTradeResult }: GroupSimulation
                         // Apex withdrawal info
                         const isFutures = group.brokerType === 'futures';
                         const MIN_TRADES_FOR_WITHDRAWAL = 8;
-                        const tradesForWithdrawal = account.tradesSinceLastWithdrawal || 0;
+                        // Ensure we have a valid number, default to 0
+                        const tradesForWithdrawal = typeof account.tradesSinceLastWithdrawal === 'number' 
+                          ? account.tradesSinceLastWithdrawal 
+                          : 0;
                         const tradesRemaining = Math.max(0, MIN_TRADES_FOR_WITHDRAWAL - tradesForWithdrawal);
                         const canWithdraw = tradesRemaining === 0;
                         const withdrawalThreshold = group.withdrawalThreshold || (account.initialBalance + 4100);
