@@ -46,7 +46,7 @@ export default function Auth() {
             <img 
               src={edgecoreHeaderLogo} 
               alt="EdgeCore Trading Logo" 
-              className="h-40 sm:h-48 w-auto"
+              className="h-64 sm:h-80 w-auto max-w-full object-contain"
             />
           </div>
           <CardDescription className="text-base">
