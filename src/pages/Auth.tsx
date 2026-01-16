@@ -42,11 +42,11 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center pb-2">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-6">
             <img 
               src={edgecoreHeaderLogo} 
               alt="EdgeCore Trading Logo" 
-              className="h-64 sm:h-80 w-auto max-w-full object-contain"
+              className="h-96 sm:h-[28rem] w-auto max-w-full object-contain"
             />
           </div>
           <CardDescription className="text-base">
