@@ -12,32 +12,36 @@ interface StatsCardProps {
 
 export const StatsCard = ({ title, value, icon: Icon, trend = "neutral", subtitle }: StatsCardProps) => {
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+    <Card className="overflow-hidden border-border hover:shadow-md transition-shadow duration-200">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+              {title}
+            </p>
             <h3 className={cn(
-              "text-2xl font-bold mb-1",
+              "text-xl font-bold font-serif tracking-tight truncate",
               trend === "up" && "text-success",
               trend === "down" && "text-destructive",
               trend === "neutral" && "text-foreground"
             )}>
               {value}
             </h3>
-            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            {subtitle && (
+              <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+            )}
           </div>
           <div className={cn(
-            "p-3 rounded-lg",
+            "p-2.5 rounded-lg shrink-0",
             trend === "up" && "bg-success/10",
             trend === "down" && "bg-destructive/10",
-            trend === "neutral" && "bg-primary/10"
+            trend === "neutral" && "bg-secondary"
           )}>
             <Icon className={cn(
-              "h-5 w-5",
+              "h-4 w-4",
               trend === "up" && "text-success",
               trend === "down" && "text-destructive",
-              trend === "neutral" && "text-primary"
+              trend === "neutral" && "text-muted-foreground"
             )} />
           </div>
         </div>
