@@ -133,46 +133,37 @@ export const ReportGenerator = ({ trades }: ReportGeneratorProps) => {
     const totalDays = trades.length;
     const executionRate = totalDays > 0 ? (actualTrades.length / totalDays * 100) : 0;
 
-    // Create PDF - EDGECORE TRADING Branding
+    // Create PDF
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const primaryColor: [number, number, number] = [180, 40, 40]; // Deep red
-    const successColor: [number, number, number] = [34, 128, 80];
-    const dangerColor: [number, number, number] = [180, 40, 40];
-    const grayColor: [number, number, number] = [100, 100, 100];
-    const blackColor: [number, number, number] = [20, 20, 20];
+    const primaryColor: [number, number, number] = [41, 98, 255];
+    const successColor: [number, number, number] = [34, 197, 94];
+    const dangerColor: [number, number, number] = [239, 68, 68];
+    const grayColor: [number, number, number] = [100, 116, 139];
     
     let yPos = 20;
 
-    // Header - Elegant black design
-    doc.setFillColor(20, 20, 20);
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    
-    // Red accent line
+    // Header
     doc.setFillColor(...primaryColor);
-    doc.rect(0, 45, pageWidth, 2, 'F');
+    doc.rect(0, 0, pageWidth, 40, 'F');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(28);
+    doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
-    doc.text("EDGECORE", pageWidth / 2, 18, { align: "center" });
+    doc.text("INFORME DE TRADING", pageWidth / 2, 18, { align: "center" });
     
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...primaryColor);
-    doc.text("TRADING", pageWidth / 2, 28, { align: "center" });
+    doc.text("EdgeCore Trading Journal", pageWidth / 2, 28, { align: "center" });
     
-    doc.setFontSize(8);
-    doc.setTextColor(180, 180, 180);
-    doc.text("TRADING CON DATA · EJECUCIÓN MILITAR · ASIMETRÍAS MATEMÁTICAS", pageWidth / 2, 38, { align: "center" });
-    
-    doc.setTextColor(120, 120, 120);
-    doc.setFontSize(9);
-    doc.text(`Informe generado: ${new Date().toLocaleDateString('es-ES', { 
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleDateString('es-ES', { 
       year: 'numeric', 
       month: 'long', 
-      day: 'numeric'
-    })}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, pageWidth / 2, 36, { align: "center" });
 
     yPos = 55;
 
@@ -518,22 +509,13 @@ export const ReportGenerator = ({ trades }: ReportGeneratorProps) => {
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      // Footer line
-      doc.setDrawColor(200, 200, 200);
-      doc.line(14, doc.internal.pageSize.getHeight() - 15, pageWidth - 14, doc.internal.pageSize.getHeight() - 15);
-      
       doc.setFontSize(8);
       doc.setTextColor(...grayColor);
       doc.text(
-        `Página ${i} de ${pageCount}`,
-        14,
-        doc.internal.pageSize.getHeight() - 8
-      );
-      doc.text(
-        `EDGECORE TRADING`,
-        pageWidth - 14,
-        doc.internal.pageSize.getHeight() - 8,
-        { align: 'right' }
+        `Página ${i} de ${pageCount} | EdgeCore Trading Journal`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
       );
     }
 
