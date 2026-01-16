@@ -27,11 +27,11 @@ export const Header = ({ userName }: HeaderProps) => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
               <img 
                 src={edgecoreLogo} 
                 alt="EdgeCore Trading Logo" 
-                className="h-12 w-auto"
+                className="h-14 md:h-16 w-auto"
               />
             </div>
             
