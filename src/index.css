@@ -1,54 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* EDGECORE TRADING Design System
+   Brand Identity: Professional, Clean, Minimalist
+   Colors: Black, White, Red Accent
+   Typography: Playfair Display (headings), Inter (body)
 */
 
 @layer base {
   :root {
-    --background: 220 26% 14%;
-    --foreground: 210 40% 98%;
+    /* Light theme - Clean white aesthetic */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
 
-    --card: 224 28% 18%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
 
-    --popover: 224 28% 18%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 72% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 20% 25%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 15%;
 
-    --muted: 215 20% 25%;
-    --muted-foreground: 217 10% 64%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 142 76% 36%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 8%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
-    --success-foreground: 210 40% 98%;
+    --success: 145 63% 35%;
+    --success-foreground: 0 0% 100%;
 
-    --warning: 45 93% 47%;
-    --warning-foreground: 220 26% 14%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 8%;
 
-    --border: 215 20% 25%;
-    --input: 215 20% 25%;
-    --ring: 221 83% 53%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 0 72% 45%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     
-    --chart-1: 142 76% 36%;
-    --chart-2: 0 84% 60%;
-    --chart-3: 221 83% 53%;
-    --chart-4: 45 93% 47%;
-    --chart-5: 280 65% 60%;
+    /* Chart colors */
+    --chart-1: 145 63% 35%;
+    --chart-2: 0 72% 45%;
+    --chart-3: 220 70% 50%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 280 65% 50%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 8%;
+    --sidebar-primary: 0 72% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 0 72% 45%;
+  }
+
+  .dark {
+    /* Dark theme - Elegant dark aesthetic */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 72% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 6%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 63% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 8%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 72% 50%;
+
+    /* Sidebar dark */
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 72% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 72% 50%;
   }
 }
 
@@ -58,6 +121,74 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .heading-display {
+    font-family: 'Playfair Display', serif;
+    @apply text-4xl md:text-5xl font-bold tracking-tight;
+  }
+
+  .heading-primary {
+    font-family: 'Playfair Display', serif;
+    @apply text-2xl md:text-3xl font-semibold;
+  }
+
+  .heading-secondary {
+    font-family: 'Playfair Display', serif;
+    @apply text-xl md:text-2xl font-medium;
+  }
+
+  .text-brand {
+    font-family: 'Playfair Display', serif;
+    @apply font-bold uppercase tracking-wide;
+  }
+
+  .text-brand-sub {
+    font-family: 'Inter', sans-serif;
+    @apply font-light uppercase tracking-[0.3em] text-sm;
+  }
+
+  .card-elegant {
+    @apply bg-card border border-border shadow-sm hover:shadow-md transition-shadow duration-300;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 font-medium;
+  }
+
+  .divider-elegant {
+    @apply h-px bg-gradient-to-r from-transparent via-border to-transparent;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted/30;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
+
+/* Selection */
+::selection {
+  @apply bg-primary/20 text-foreground;
 }
