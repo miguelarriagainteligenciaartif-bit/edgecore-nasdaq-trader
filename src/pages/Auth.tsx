@@ -73,7 +73,7 @@ export default function Auth() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white" disabled={loading}>
               {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Registrarse"}
             </Button>
           </form>
@@ -81,7 +81,7 @@ export default function Auth() {
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-primary hover:underline"
+              className="text-sm text-white hover:underline"
             >
               {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
