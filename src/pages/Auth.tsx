@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import edgecoreLogo from "@/assets/edgecore-logo.png";
+import edgecoreHeaderLogo from "@/assets/edgecore-header-logo.png";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -44,9 +44,9 @@ export default function Auth() {
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
             <img 
-              src={edgecoreLogo} 
+              src={edgecoreHeaderLogo} 
               alt="EdgeCore Trading Logo" 
-              className="h-80 sm:h-96 w-auto"
+              className="h-40 sm:h-48 w-auto"
             />
           </div>
           <CardDescription className="text-base">
