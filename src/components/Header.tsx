@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import edgecoreHeaderLogo from "@/assets/edgecore-header-logo.png";
 
 interface HeaderProps {
   userName?: string | null;
@@ -27,8 +28,11 @@ export const Header = ({ userName }: HeaderProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="cursor-pointer" onClick={() => navigate("/")}>
-              <h1 className="text-xl font-bold text-foreground">EdgeCore Trading</h1>
-              <p className="text-xs text-muted-foreground">Nasdaq 100 Journal</p>
+              <img 
+                src={edgecoreHeaderLogo} 
+                alt="EdgeCore Trading" 
+                className="h-14 w-auto"
+              />
             </div>
             
             <nav className="hidden md:flex items-center gap-4">
