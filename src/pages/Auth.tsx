@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { BarChart3 } from "lucide-react";
+import edgecoreLogo from "@/assets/edgecore-logo.png";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -43,9 +43,11 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <BarChart3 className="h-8 w-8 text-primary" />
-            </div>
+            <img 
+              src={edgecoreLogo} 
+              alt="EdgeCore Trading Logo" 
+              className="h-16 w-auto"
+            />
           </div>
           <CardTitle className="text-2xl">EdgeCore Trading</CardTitle>
           <CardDescription>
