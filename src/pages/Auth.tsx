@@ -39,55 +39,49 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-900">
-      <Card className="w-full max-w-md bg-zinc-900 border-zinc-800">
-        <CardHeader className="text-center pb-2">
-          <div className="flex justify-center mb-6">
-            <img 
-              src={edgecoreHeaderLogo} 
-              alt="EdgeCore Trading Logo" 
-              className="h-96 sm:h-[28rem] w-auto max-w-full object-contain"
-            />
-          </div>
-          <CardDescription className="text-base">
-            {isLogin ? "Inicia sesión en tu cuenta" : "Crea tu cuenta para comenzar"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-black font-semibold" disabled={loading}>
-              {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Registrarse"}
-            </Button>
-          </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-white hover:underline"
-            >
-              {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-zinc-900">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-6">
+          <img 
+            src={edgecoreHeaderLogo} 
+            alt="EdgeCore Trading Logo" 
+            className="h-96 sm:h-[28rem] w-auto max-w-full object-contain"
+          />
+        </div>
+        <p className="text-center text-zinc-400 mb-6">
+          {isLogin ? "Inicia sesión en tu cuenta" : "Crea tu cuenta para comenzar"}
+        </p>
+        <form onSubmit={handleAuth} className="space-y-4">
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="bg-zinc-800 border-zinc-700"
+            required
+          />
+          <Input
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="bg-zinc-800 border-zinc-700"
+            required
+          />
+          <Button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-black font-semibold" disabled={loading}>
+            {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Registrarse"}
+          </Button>
+        </form>
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-sm text-zinc-400 hover:text-white hover:underline"
+          >
+            {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
