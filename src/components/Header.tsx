@@ -31,7 +31,7 @@ export const Header = ({ userName }: HeaderProps) => {
               <img 
                 src={edgecoreLogo} 
                 alt="EdgeCore Trading Logo" 
-                className="h-14 md:h-16 w-auto"
+                className="h-10 sm:h-12 md:h-14 w-auto"
               />
             </div>
             
