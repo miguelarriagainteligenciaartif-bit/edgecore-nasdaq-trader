@@ -41,16 +41,15 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-6">
+        <CardHeader className="text-center pb-2">
+          <div className="flex justify-center mb-4">
             <img 
               src={edgecoreLogo} 
               alt="EdgeCore Trading Logo" 
-              className="h-40 sm:h-48 w-auto"
+              className="h-64 sm:h-80 w-auto"
             />
           </div>
-          <CardTitle className="text-2xl">EdgeCore Trading</CardTitle>
-          <CardDescription>
+          <CardDescription className="text-base">
             {isLogin ? "Inicia sesión en tu cuenta" : "Crea tu cuenta para comenzar"}
           </CardDescription>
         </CardHeader>
