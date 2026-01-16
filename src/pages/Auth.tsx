@@ -48,7 +48,7 @@ export default function Auth() {
             className="h-96 sm:h-[28rem] w-auto max-w-full object-contain"
           />
         </div>
-        <p className="text-center text-zinc-400 mb-6">
+        <p className="text-center text-white mb-6">
           {isLogin ? "Inicia sesión en tu cuenta" : "Crea tu cuenta para comenzar"}
         </p>
         <form onSubmit={handleAuth} className="space-y-4">
@@ -57,7 +57,7 @@ export default function Auth() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="bg-zinc-800 border-zinc-700"
+            className="bg-zinc-800 border-zinc-700 text-white placeholder:text-white"
             required
           />
           <Input
@@ -65,7 +65,7 @@ export default function Auth() {
             placeholder="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="bg-zinc-800 border-zinc-700"
+            className="bg-zinc-800 border-zinc-700 text-white placeholder:text-white"
             required
           />
           <Button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-black font-semibold" disabled={loading}>
@@ -76,7 +76,7 @@ export default function Auth() {
           <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-zinc-400 hover:text-white hover:underline"
+            className="text-sm text-white hover:underline"
           >
             {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
           </button>
