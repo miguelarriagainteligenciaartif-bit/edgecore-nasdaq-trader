@@ -187,6 +187,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const [errors, setErrors] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
   const [dateFormat, setDateFormat] = useState<DateFormat>("auto");
+  const [isDragging, setIsDragging] = useState(false);
 
   const [rawRows, setRawRows] = useState<CsvRow[]>([]);
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
@@ -229,13 +230,45 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     setProgress(0);
     setRawRows([]);
     setPreviewRows([]);
+    setIsDragging(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
+  const handleDragEnter = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.name.endsWith('.csv')) {
+        // Trigger the same processing as file input
+        processFile(file);
+      } else {
+        toast.error("Solo se permiten archivos CSV");
+      }
+    }
+  };
+
+  const processFile = async (file: File) => {
     setLoading(true);
     setErrors([]);
     setRawRows([]);
@@ -348,6 +381,12 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    processFile(file);
   };
 
   const handleImport = async () => {
@@ -491,11 +530,27 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                <label 
+                  className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                    isDragging 
+                      ? "border-primary bg-primary/10" 
+                      : "hover:bg-muted/50"
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none">
+                    <Upload className={`h-8 w-8 mb-2 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
                     <p className="mb-2 text-sm text-muted-foreground">
-                      <span className="font-semibold">Click para seleccionar</span> o arrastra un archivo
+                      {isDragging ? (
+                        <span className="font-semibold text-primary">Suelta el archivo aquí</span>
+                      ) : (
+                        <>
+                          <span className="font-semibold">Click para seleccionar</span> o arrastra un archivo
+                        </>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">.csv</p>
                   </div>
