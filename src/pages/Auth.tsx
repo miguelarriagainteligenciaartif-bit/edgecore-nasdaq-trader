@@ -73,7 +73,7 @@ export default function Auth() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white" disabled={loading}>
+            <Button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-black font-semibold" disabled={loading}>
               {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Registrarse"}
             </Button>
           </form>
