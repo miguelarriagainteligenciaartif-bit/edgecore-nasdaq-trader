@@ -49,8 +49,8 @@ export default function Auth() {
               className="h-96 sm:h-[28rem] w-auto max-w-full object-contain"
             />
           </div>
-          <CardDescription className="text-base">
-            {isLogin ? "Inicia sesión en tu cuenta" : "Crea tu cuenta para comenzar"}
+          <CardDescription className="text-base font-semibold bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-clip-text text-transparent">
+            {isLogin ? "Trading con Data • Ejecución Militar • Asimetrías Matemáticas" : "Crea tu cuenta para comenzar"}
           </CardDescription>
         </CardHeader>
         <CardContent>
