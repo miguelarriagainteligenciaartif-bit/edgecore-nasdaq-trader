@@ -1,4 +1,4 @@
-import { BarChart3, FlaskConical, Activity, Save, Layers, Newspaper, ClipboardCheck } from "lucide-react";
+import { FlaskConical, Activity, Save, Layers, Newspaper, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -26,14 +26,9 @@ export const Header = ({ userName }: HeaderProps) => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">EdgeCore Trading</h1>
-                <p className="text-xs text-muted-foreground">Nasdaq 100 Journal</p>
-              </div>
+            <div className="cursor-pointer" onClick={() => navigate("/")}>
+              <h1 className="text-xl font-bold text-foreground">EdgeCore Trading</h1>
+              <p className="text-xs text-muted-foreground">Nasdaq 100 Journal</p>
             </div>
             
             <nav className="hidden md:flex items-center gap-4">
