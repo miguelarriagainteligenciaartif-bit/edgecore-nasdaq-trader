@@ -190,10 +190,6 @@ export const ChecklistStats = () => {
     if (winRate >= 40) return "hsl(var(--warning))";
     return "hsl(var(--destructive))";
   };
-    if (winRate >= 60) return "hsl(var(--success))";
-    if (winRate >= 40) return "hsl(var(--warning))";
-    return "hsl(var(--destructive))";
-  };
 
   const winRateDiff = stats.tradesWithChecklist.winRate - stats.tradesWithoutChecklist.winRate;
   const formattedFirstDate = format(new Date(stats.firstChecklistDate), "d 'de' MMMM, yyyy", { locale: es });
