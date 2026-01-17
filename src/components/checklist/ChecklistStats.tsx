@@ -12,18 +12,6 @@ import {
   ClipboardX,
   CalendarRange
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-} from "recharts";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -109,6 +97,11 @@ export const ChecklistStats = () => {
     // Separate analyzed trades by whether they have a checklist on that date
     const tradesWithChecklistArr = analyzedTrades.filter(t => checklistDates.has(t.date));
     const tradesWithoutChecklistArr = analyzedTrades.filter(t => !checklistDates.has(t.date));
+    
+    // Debug log
+    console.log('Checklist dates:', Array.from(checklistDates));
+    console.log('Analyzed trades:', analyzedTrades.map(t => ({ date: t.date, result: t.result_type })));
+    console.log('With checklist:', tradesWithChecklistArr.length, 'Without:', tradesWithoutChecklistArr.length);
 
     // Calculate stats for trades WITH checklist
     const withChecklistTPs = tradesWithChecklistArr.filter(t => t.result_type === 'TP').length;
@@ -192,35 +185,11 @@ export const ChecklistStats = () => {
     );
   }
 
-  const comparisonData = [
-    {
-      name: "Con Checklist",
-      winRate: stats.tradesWithChecklist.winRate,
-      trades: stats.tradesWithChecklist.total,
-      pnl: stats.tradesWithChecklist.pnl,
-    },
-    {
-      name: "Sin Checklist",
-      winRate: stats.tradesWithoutChecklist.winRate,
-      trades: stats.tradesWithoutChecklist.total,
-      pnl: stats.tradesWithoutChecklist.pnl,
-    },
-  ];
-
-  const pieData = [
-    {
-      name: "Con Checklist",
-      value: stats.tradesWithChecklist.total,
-      fill: "hsl(var(--success))",
-    },
-    {
-      name: "Sin Checklist",
-      value: stats.tradesWithoutChecklist.total,
-      fill: "hsl(var(--muted-foreground))",
-    },
-  ];
-
   const getBarColor = (winRate: number) => {
+    if (winRate >= 60) return "hsl(var(--success))";
+    if (winRate >= 40) return "hsl(var(--warning))";
+    return "hsl(var(--destructive))";
+  };
     if (winRate >= 60) return "hsl(var(--success))";
     if (winRate >= 40) return "hsl(var(--warning))";
     return "hsl(var(--destructive))";
@@ -409,33 +378,62 @@ export const ChecklistStats = () => {
         </Card>
       </div>
 
-      {/* Win Rate Comparison Chart */}
+      {/* Win Rate Comparison - Simple Visual */}
       {stats.totalAnalyzedTrades > 0 && (
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-lg">Comparativa Win Rate</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={comparisonData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis dataKey="name" type="category" width={110} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
+          <CardContent className="space-y-4">
+            {/* Con Checklist Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-success" />
+                  Con Checklist
+                </span>
+                <span className="text-lg font-bold" style={{ color: getBarColor(stats.tradesWithChecklist.winRate) }}>
+                  {stats.tradesWithChecklist.winRate}%
+                </span>
+              </div>
+              <div className="h-6 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.max(stats.tradesWithChecklist.winRate, 2)}%`,
+                    backgroundColor: getBarColor(stats.tradesWithChecklist.winRate)
                   }}
-                  formatter={(value: number) => [`${value}%`, 'Win Rate']}
                 />
-                <Bar dataKey="winRate" radius={[0, 4, 4, 0]}>
-                  {comparisonData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getBarColor(entry.winRate)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.tradesWithChecklist.total} trades ({stats.tradesWithChecklist.tps} TP / {stats.tradesWithChecklist.sls} SL)
+              </p>
+            </div>
+
+            {/* Sin Checklist Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium flex items-center gap-2">
+                  <ClipboardX className="h-4 w-4 text-muted-foreground" />
+                  Sin Checklist
+                </span>
+                <span className="text-lg font-bold" style={{ color: getBarColor(stats.tradesWithoutChecklist.winRate) }}>
+                  {stats.tradesWithoutChecklist.winRate}%
+                </span>
+              </div>
+              <div className="h-6 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.max(stats.tradesWithoutChecklist.winRate, 2)}%`,
+                    backgroundColor: getBarColor(stats.tradesWithoutChecklist.winRate)
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.tradesWithoutChecklist.total} trades ({stats.tradesWithoutChecklist.tps} TP / {stats.tradesWithoutChecklist.sls} SL)
+              </p>
+            </div>
             
             {/* Insight */}
             {stats.tradesWithChecklist.total >= 3 && stats.tradesWithoutChecklist.total >= 3 && (
@@ -470,53 +468,33 @@ export const ChecklistStats = () => {
         </Card>
       )}
 
-      {/* Distribution Pie Chart */}
+      {/* Distribution Summary */}
       {stats.totalAnalyzedTrades > 0 && (
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-lg">Distribución de Trades (desde {formattedFirstDate})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col md:flex-row items-center justify-center gap-8">
-              <ResponsiveContainer width={200} height={200}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${value} trades (${Math.round((value / stats.totalAnalyzedTrades) * 100)}%)`,
-                      name
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg bg-success/10 border border-success/30">
+                <div className="flex items-center gap-3 mb-2">
                   <div className="w-4 h-4 rounded bg-success"></div>
-                  <span className="text-sm">Con Checklist: <strong>{stats.tradesWithChecklist.total}</strong> trades ({Math.round((stats.tradesWithChecklist.total / stats.totalAnalyzedTrades) * 100)}%)</span>
+                  <span className="font-medium">Con Checklist</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <p className="text-2xl font-bold">{stats.tradesWithChecklist.total}</p>
+                <p className="text-sm text-muted-foreground">
+                  {Math.round((stats.tradesWithChecklist.total / stats.totalAnalyzedTrades) * 100)}% del total
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <div className="flex items-center gap-3 mb-2">
                   <div className="w-4 h-4 rounded bg-muted-foreground"></div>
-                  <span className="text-sm">Sin Checklist: <strong>{stats.tradesWithoutChecklist.total}</strong> trades ({Math.round((stats.tradesWithoutChecklist.total / stats.totalAnalyzedTrades) * 100)}%)</span>
+                  <span className="font-medium">Sin Checklist</span>
                 </div>
+                <p className="text-2xl font-bold">{stats.tradesWithoutChecklist.total}</p>
+                <p className="text-sm text-muted-foreground">
+                  {Math.round((stats.tradesWithoutChecklist.total / stats.totalAnalyzedTrades) * 100)}% del total
+                </p>
               </div>
             </div>
           </CardContent>
