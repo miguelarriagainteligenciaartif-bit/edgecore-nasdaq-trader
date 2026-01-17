@@ -464,6 +464,7 @@ export type Database = {
           news_description: string | null
           news_time: string | null
           no_trade_day: boolean | null
+          notes: string | null
           result_dollars: number
           result_type: string
           risk_percentage: number
@@ -491,6 +492,7 @@ export type Database = {
           news_description?: string | null
           news_time?: string | null
           no_trade_day?: boolean | null
+          notes?: string | null
           result_dollars: number
           result_type: string
           risk_percentage?: number
@@ -518,6 +520,7 @@ export type Database = {
           news_description?: string | null
           news_time?: string | null
           no_trade_day?: boolean | null
+          notes?: string | null
           result_dollars?: number
           result_type?: string
           risk_percentage?: number
