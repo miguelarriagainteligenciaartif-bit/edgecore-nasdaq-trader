@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, ExternalLink, Pencil, ArrowLeft, MessageSquare } from "lucide-react";
+import { TrendingUp, TrendingDown, ExternalLink, Pencil, ArrowLeft, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditTradeForm } from "@/components/EditTradeForm";
-
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 interface Trade {
   id: string;
   date: string;
@@ -40,6 +42,30 @@ interface TradeDetailsDialogProps {
 
 export const TradeDetailsDialog = ({ trade, open, onOpenChange, onUpdated }: TradeDetailsDialogProps) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!trade) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("trades")
+        .delete()
+        .eq("id", trade.id);
+
+      if (error) throw error;
+
+      toast.success("Operación eliminada correctamente");
+      onUpdated?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error deleting trade:", error);
+      toast.error("Error al eliminar la operación");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (!trade) return null;
 
@@ -71,14 +97,45 @@ export const TradeDetailsDialog = ({ trade, open, onOpenChange, onUpdated }: Tra
                 Volver
               </Button>
             ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil className="h-4 w-4 mr-2" />
-                Editar
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar operación?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Se eliminará permanentemente esta operación del {trade.date}.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {isDeleting ? "Eliminando..." : "Eliminar"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
         </DialogHeader>
