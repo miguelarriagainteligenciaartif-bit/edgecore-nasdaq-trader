@@ -29,11 +29,15 @@ interface ParsedTrade {
   result_dollars: number;
   had_news: boolean;
   news_description: string | null;
+  custom_news_description: string | null;
   max_rr: number | null;
   drawdown: number | null;
   image_link: string | null;
   no_trade_day: boolean;
   risk_percentage: number;
+  notes: string | null;
+  news_time: string | null;
+  execution_timing: string | null;
 }
 
 interface PreviewRow {
@@ -63,7 +67,6 @@ const formatYmd = (d: Date) => {
 };
 
 const parseDateFromParts = (year: number, month: number, day: number) => {
-  // Midday local time avoids timezone boundary shifts.
   const d = new Date(year, month - 1, day, 12, 0, 0, 0);
   return formatYmd(d);
 };
@@ -160,7 +163,6 @@ const mapEntryModel = (modelo: string | undefined): string => {
 };
 
 const parseFechaWithMesGuarantee = (rawFecha: string, rawMes: string, fmt: Exclude<DateFormat, "auto">): string | null => {
-  // rawFecha examples: 1/8/2025 OR 7/8/2025
   const parts = String(rawFecha ?? "").trim().split("/");
   if (parts.length !== 3) return null;
 
@@ -173,11 +175,53 @@ const parseFechaWithMesGuarantee = (rawFecha: string, rawMes: string, fmt: Exclu
   const mes = parseInt(String(rawMes ?? ""), 10);
   if (!Number.isFinite(mes) || mes < 1 || mes > 12) return null;
 
-  // Choose day from FECHA depending on user-selected format.
   const day = fmt === "dmy" ? a : b;
   if (!Number.isFinite(day) || day < 1 || day > 31) return null;
 
   return parseDateFromParts(year, mes, day);
+};
+
+/** Try to parse ISO date (YYYY-MM-DD) */
+const parseIsoDate = (rawFecha: string): string | null => {
+  const match = rawFecha.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return parseDateFromParts(year, month, day);
+};
+
+/**
+ * Detect if CSV has summary/metadata rows before the actual trade data.
+ * Returns the text starting from the detected header row onward.
+ */
+const extractTradeData = (text: string): string => {
+  const lines = text.split(/\r?\n/);
+  
+  // Look for a header row that contains trade-related columns
+  const tradeHeaderPatterns = [
+    /fecha/i,
+  ];
+  const tradeHeaderRequired = [
+    // Must have at least 2 of these to be a trade header
+    /hora\s*entrada/i, /entry.*time/i, /tipo/i, /type/i, /resultado/i, /result/i, /p&l/i, /modelo/i, /model/i,
+  ];
+  
+  for (let i = 0; i < Math.min(lines.length, 60); i++) {
+    const line = lines[i];
+    const hasFecha = tradeHeaderPatterns.some(p => p.test(line));
+    if (!hasFecha) continue;
+    
+    const matchCount = tradeHeaderRequired.filter(p => p.test(line)).length;
+    if (matchCount >= 2) {
+      // Found the header row — return from here onward
+      return lines.slice(i).join("\n");
+    }
+  }
+  
+  // No summary detected, return as-is
+  return text;
 };
 
 export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
@@ -195,11 +239,8 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const detectedAuto = useMemo<Exclude<DateFormat, "auto">>(() => {
-    // If MES is present in most rows, DMY is more likely for Spanish sources.
-    // But we still let user override.
     if (dateFormat !== "auto") return dateFormat;
 
-    // Vote by looking at FECHA ambiguity in first N rows.
     let dmyVotes = 0;
     let mdyVotes = 0;
     for (const r of rawRows.slice(0, 80)) {
@@ -217,10 +258,18 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
   }, [dateFormat, rawRows]);
 
   function getValue(row: CsvRow, header: string) {
-    // Build normalized key map on the fly (small row count, fine).
     const desired = normalizeHeader(header);
     for (const [k, v] of Object.entries(row)) {
       if (normalizeHeader(k) === desired) return v;
+    }
+    return undefined;
+  }
+
+  /** Get value checking multiple possible header names */
+  function getValueMulti(row: CsvRow, ...headers: string[]) {
+    for (const h of headers) {
+      const v = getValue(row, h);
+      if (v !== undefined && v !== "") return v;
     }
     return undefined;
   }
@@ -260,12 +309,126 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     if (files && files.length > 0) {
       const file = files[0];
       if (file.name.endsWith('.csv')) {
-        // Trigger the same processing as file input
         processFile(file);
       } else {
         toast.error("Solo se permiten archivos CSV");
       }
     }
+  };
+
+  const parseRowToTrade = (r: CsvRow, fmt: Exclude<DateFormat, "auto">): { trade: ParsedTrade; rawFecha: string; rawMes: string } | null => {
+    // --- DATE ---
+    const rawFecha = String(getValueMulti(r, "FECHA", "DATE") ?? "").trim();
+    if (!rawFecha) return null;
+
+    let dateStr: string | null = null;
+
+    // Try ISO format first (YYYY-MM-DD)
+    dateStr = parseIsoDate(rawFecha);
+
+    // Try MES-guaranteed construction
+    const rawMes = String(getValue(r, "MES") ?? "").trim();
+    if (!dateStr && rawMes) {
+      dateStr = parseFechaWithMesGuarantee(rawFecha, rawMes, fmt);
+    }
+
+    // Fallback: slash-separated
+    if (!dateStr && rawFecha.includes("/")) {
+      const parts = rawFecha.split("/");
+      if (parts.length === 3) {
+        const a = parseInt(parts[0], 10);
+        const b = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        if (Number.isFinite(a) && Number.isFinite(b) && Number.isFinite(year)) {
+          if (year < 100) year += year > 50 ? 1900 : 2000;
+          const day = fmt === "dmy" ? a : b;
+          const month = fmt === "dmy" ? b : a;
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            dateStr = parseDateFromParts(year, month, day);
+          }
+        }
+      }
+    }
+
+    if (!dateStr) return null;
+
+    const year = parseInt(dateStr.split("-")[0], 10);
+    if (year < 2020) return null;
+
+    const pnl = parsePnL(getValueMulti(r, "P&L", "PNL", "PROFIT"));
+
+    // --- NEWS ---
+    // Support both formats:
+    // Format 1 (old): Single "NOTICIA" column with description or "NO NEWS"
+    // Format 2 (Quantum): "Noticias" = Sí/No, "Descripción Noticias" = text, "Hora Noticias" = time
+    const noticiaRaw = getValueMulti(r, "NOTICIAS", "NOTICIA");
+    const descripcionNoticias = getValueMulti(r, "DESCRIPCION NOTICIAS", "DESCRIPCIÓN NOTICIAS");
+    const horaNoticiasRaw = getValueMulti(r, "HORA NOTICIAS");
+
+    let hadNews = false;
+    let newsDescription: string | null = null;
+    let newsTime: string | null = null;
+
+    if (noticiaRaw) {
+      const upper = noticiaRaw.toUpperCase().trim();
+      if (upper === "SI" || upper === "SÍ" || upper === "YES" || upper === "TRUE") {
+        hadNews = true;
+        newsDescription = descripcionNoticias || null;
+      } else if (upper === "NO" || upper === "FALSE" || upper.includes("NO NEWS")) {
+        hadNews = false;
+      } else {
+        // Old format: the value itself is the description
+        hadNews = true;
+        newsDescription = noticiaRaw;
+      }
+    }
+
+    if (horaNoticiasRaw) {
+      newsTime = parseTime(horaNoticiasRaw);
+      if (newsTime === "09:30:00" && !horaNoticiasRaw.includes("9")) newsTime = null;
+    }
+
+    // --- NO TRADE DAY ---
+    const noTradeDayRaw = getValueMulti(r, "NO TRADE DAY", "NO TRADE");
+    let noTradeDay = false;
+    if (noTradeDayRaw) {
+      const upper = noTradeDayRaw.toUpperCase().trim();
+      noTradeDay = upper === "SI" || upper === "SÍ" || upper === "YES" || upper === "TRUE";
+    }
+
+    // --- EXECUTION TIMING ---
+    const executionTiming = getValueMulti(r, "TIMING EJECUCION", "TIMING EJECUCIÓN", "EXECUTION TIMING") || null;
+
+    // --- NOTES ---
+    const notes = getValueMulti(r, "NOTAS", "NOTES") || null;
+
+    const trade: ParsedTrade = {
+      date: dateStr,
+      day_of_week: mapDayOfWeek(getValueMulti(r, "DIA", "DÍA", "DAY")),
+      week_of_month: parseWeekOfMonth(getValueMulti(r, "SEMANA", "WEEK")),
+      entry_time: parseTime(getValueMulti(r, "HORA ENTRADA", "ENTRY TIME")),
+      exit_time: (() => {
+        const v = getValueMulti(r, "HORA SALIDA EN 1:2", "HORA SALIDA", "EXIT TIME");
+        return v ? parseTime(v) : null;
+      })(),
+      trade_type: mapTradeType(getValueMulti(r, "TIPO", "TYPE")),
+      entry_model: mapEntryModel(getValueMulti(r, "MODELO", "MODEL")),
+      result_type: mapResultType(getValueMulti(r, "RESULTADO", "RESULT"), pnl),
+      result_dollars: pnl,
+      had_news: hadNews,
+      news_description: newsDescription,
+      custom_news_description: descripcionNoticias || null,
+      max_rr: parseNumber(getValueMulti(r, "MAX RR", "RR MAXIMO", "RR MÁXIMO")),
+      drawdown: parseNumber(getValueMulti(r, "DRAWDOWN")),
+      image_link: getValueMulti(r, "LINK M1 (EJECUCION)", "LINK M1 (EJECUCIÓN)", "LINK") ?? null,
+      no_trade_day: noTradeDay,
+      risk_percentage: 1,
+      notes: notes,
+      news_time: newsTime,
+      execution_timing: executionTiming,
+    };
+
+    return { trade, rawFecha, rawMes };
   };
 
   const processFile = async (file: File) => {
@@ -275,12 +438,18 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
     setPreviewRows([]);
 
     try {
-      const text = await file.text();
+      let text = await file.text();
+      
+      // Strip BOM
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+      // Detect and skip summary/metadata rows
+      text = extractTradeData(text);
 
       const parsed = Papa.parse<CsvRow>(text, {
         header: true,
         skipEmptyLines: "greedy",
-        transformHeader: (h) => h, // keep original; we normalize when reading
+        transformHeader: (h) => h,
       });
 
       if (parsed.errors?.length) {
@@ -290,90 +459,36 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
       const rows = (parsed.data ?? []).filter((r) => Object.keys(r ?? {}).length > 0);
       setRawRows(rows);
 
+      const fmt = dateFormat === "auto" ? detectedAuto : dateFormat;
       const previews: PreviewRow[] = [];
       let valid = 0;
       let skippedOld = 0;
       let skippedEmpty = 0;
 
       for (const r of rows) {
-        const rawFecha = String(getValue(r, "FECHA") ?? "").trim();
+        const rawFecha = String(getValueMulti(r, "FECHA", "DATE") ?? "").trim();
         if (!rawFecha) {
           skippedEmpty++;
           continue;
         }
 
-        // Prefer MES-guaranteed construction when MES exists.
-        const rawMes = String(getValue(r, "MES") ?? "").trim();
-        const fmt = dateFormat === "auto" ? detectedAuto : dateFormat;
-
-        let dateStr: string | null = null;
-        if (rawMes) {
-          dateStr = parseFechaWithMesGuarantee(rawFecha, rawMes, fmt);
-        }
-
-        // Fallback: standard parse (less safe, but keeps working if MES missing)
-        if (!dateStr) {
-          // Try with fmt
-          dateStr = (() => {
-            const parts = rawFecha.split("/");
-            if (parts.length !== 3) return null;
-            const a = parseInt(parts[0], 10);
-            const b = parseInt(parts[1], 10);
-            let year = parseInt(parts[2], 10);
-            if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(year)) return null;
-            if (year < 100) year += year > 50 ? 1900 : 2000;
-            const day = fmt === "dmy" ? a : b;
-            const month = fmt === "dmy" ? b : a;
-            if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-            return parseDateFromParts(year, month, day);
-          })();
-        }
-
-        if (!dateStr) continue;
-
-        const year = parseInt(dateStr.split("-")[0], 10);
-        if (year < 2020) {
-          skippedOld++;
-          continue;
-        }
-
-        const pnl = parsePnL(getValue(r, "P&L"));
-        const trade: ParsedTrade = {
-          date: dateStr,
-          day_of_week: mapDayOfWeek(getValue(r, "DÍA") ?? getValue(r, "DIA")),
-          week_of_month: parseWeekOfMonth(getValue(r, "SEMANA")),
-          entry_time: parseTime(getValue(r, "HORA ENTRADA")),
-          exit_time: getValue(r, "HORA SALIDA EN 1:2") || getValue(r, "HORA SALIDA") ? parseTime(getValue(r, "HORA SALIDA EN 1:2") || getValue(r, "HORA SALIDA")) : null,
-          trade_type: mapTradeType(getValue(r, "TIPO")),
-          entry_model: mapEntryModel(getValue(r, "MODELO")),
-          result_type: mapResultType(getValue(r, "RESULTADO"), pnl),
-          result_dollars: pnl,
-          had_news: (getValue(r, "NOTICIA") ? !String(getValue(r, "NOTICIA")).toUpperCase().includes("NO NEWS") : false) as boolean,
-          news_description:
-            getValue(r, "NOTICIA") && !String(getValue(r, "NOTICIA")).toUpperCase().includes("NO NEWS")
-              ? String(getValue(r, "NOTICIA"))
-              : null,
-          max_rr: parseNumber(getValue(r, "RR MÁXIMO")),
-          drawdown: parseNumber(getValue(r, "DRAWDOWN")),
-          image_link: (getValue(r, "LINK m1 (EJECUCIÓN)") || getValue(r, "LINK")) ?? null,
-          no_trade_day: false,
-          risk_percentage: 1,
-        };
+        const result = parseRowToTrade(r, fmt);
+        if (!result) continue;
 
         valid++;
         if (previews.length < 50) {
-          previews.push({ parsed: trade, rawFecha, rawMes });
+          previews.push({ parsed: result.trade, rawFecha: result.rawFecha, rawMes: result.rawMes });
         }
       }
 
       toast.info(
-        `CSV: ${rows.length} filas leídas · ${valid} operaciones válidas · ${skippedOld} antiguas · ${skippedEmpty} vacías · formato: ${dateFormat === "auto" ? "Auto" : dateFormat === "dmy" ? "Día/Mes/Año" : "Mes/Día/Año"}`
+        `CSV: ${rows.length} filas leídas · ${valid} operaciones válidas · ${skippedOld} antiguas · ${skippedEmpty} vacías`
       );
 
       setPreviewRows(previews);
 
       if (valid === 0) {
-        setErrors((prev) => [...prev, "No se pudieron detectar operaciones válidas."]);
+        setErrors((prev) => [...prev, "No se pudieron detectar operaciones válidas. Verifica que el CSV tenga columnas como Fecha, Tipo, Resultado, P&L."]);
       }
     } catch (err) {
       console.error("CSV read error:", err);
@@ -404,58 +519,12 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
         return;
       }
 
-      // Rebuild full parsed list from rawRows (not only previews)
       const fmt = dateFormat === "auto" ? detectedAuto : dateFormat;
       const parsedTrades: ParsedTrade[] = [];
 
       for (const r of rawRows) {
-        const rawFecha = String(getValue(r, "FECHA") ?? "").trim();
-        if (!rawFecha) continue;
-
-        const rawMes = String(getValue(r, "MES") ?? "").trim();
-
-        let dateStr: string | null = null;
-        if (rawMes) dateStr = parseFechaWithMesGuarantee(rawFecha, rawMes, fmt);
-        if (!dateStr) {
-          const parts = rawFecha.split("/");
-          if (parts.length !== 3) continue;
-          const a = parseInt(parts[0], 10);
-          const b = parseInt(parts[1], 10);
-          let year = parseInt(parts[2], 10);
-          if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(year)) continue;
-          if (year < 100) year += year > 50 ? 1900 : 2000;
-          const day = fmt === "dmy" ? a : b;
-          const month = fmt === "dmy" ? b : a;
-          if (month < 1 || month > 12 || day < 1 || day > 31) continue;
-          dateStr = parseDateFromParts(year, month, day);
-        }
-
-        const year = parseInt(dateStr.split("-")[0], 10);
-        if (year < 2020) continue;
-
-        const pnl = parsePnL(getValue(r, "P&L"));
-
-        parsedTrades.push({
-          date: dateStr,
-          day_of_week: mapDayOfWeek(getValue(r, "DÍA") ?? getValue(r, "DIA")),
-          week_of_month: parseWeekOfMonth(getValue(r, "SEMANA")),
-          entry_time: parseTime(getValue(r, "HORA ENTRADA")),
-          exit_time: getValue(r, "HORA SALIDA EN 1:2") || getValue(r, "HORA SALIDA") ? parseTime(getValue(r, "HORA SALIDA EN 1:2") || getValue(r, "HORA SALIDA")) : null,
-          trade_type: mapTradeType(getValue(r, "TIPO")),
-          entry_model: mapEntryModel(getValue(r, "MODELO")),
-          result_type: mapResultType(getValue(r, "RESULTADO"), pnl),
-          result_dollars: pnl,
-          had_news: (getValue(r, "NOTICIA") ? !String(getValue(r, "NOTICIA")).toUpperCase().includes("NO NEWS") : false) as boolean,
-          news_description:
-            getValue(r, "NOTICIA") && !String(getValue(r, "NOTICIA")).toUpperCase().includes("NO NEWS")
-              ? String(getValue(r, "NOTICIA"))
-              : null,
-          max_rr: parseNumber(getValue(r, "RR MÁXIMO")),
-          drawdown: parseNumber(getValue(r, "DRAWDOWN")),
-          image_link: (getValue(r, "LINK m1 (EJECUCIÓN)") || getValue(r, "LINK")) ?? null,
-          no_trade_day: false,
-          risk_percentage: 1,
-        });
+        const result = parseRowToTrade(r, fmt);
+        if (result) parsedTrades.push(result.trade);
       }
 
       const batchSize = 50;
@@ -523,7 +592,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
             <FileSpreadsheet className="h-5 w-5" />
             Importar Operaciones desde CSV
           </DialogTitle>
-          <DialogDescription>Sube un archivo CSV (exportado desde Google Sheets) con tus operaciones.</DialogDescription>
+          <DialogDescription>Sube un archivo CSV con tus operaciones. Compatible con Quantum Trading, Google Sheets y otros formatos.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -571,7 +640,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
             <div>
               <p className="text-sm font-medium">Formato de fecha</p>
               <p className="text-xs text-muted-foreground">
-                Si tus fechas son tipo 7/8/2025, selecciona el formato correcto. Si tu CSV trae la columna MES, el mes se forzará con ese valor.
+                Fechas ISO (2025-08-01) se detectan automáticamente. Para fechas tipo 7/8/2025, selecciona el formato.
               </p>
             </div>
             <Select value={dateFormat} onValueChange={(v) => setDateFormat(v as DateFormat)}>
@@ -619,8 +688,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                   Vista previa ({Math.min(previewRows.length, 50)} filas)
                 </CardTitle>
                 <CardDescription>
-                  Aquí ves la fecha interpretada vs la fecha del CSV. Si aquí ya sale mal, no importes.
-                  <span className="block mt-1 text-xs">Auto actual: <span className="font-medium">{detectedAuto === "dmy" ? "Día/Mes/Año" : "Mes/Día/Año"}</span></span>
+                  Verifica que las fechas y datos se interpretan correctamente antes de importar.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -628,9 +696,7 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Fecha (parseada)</TableHead>
-                        <TableHead>Fecha (CSV)</TableHead>
-                        <TableHead className="text-center">MES</TableHead>
+                        <TableHead>Fecha</TableHead>
                         <TableHead>Día</TableHead>
                         <TableHead>Hora</TableHead>
                         <TableHead>Tipo</TableHead>
@@ -640,41 +706,33 @@ export function ExcelImporter({ onSuccess, accountId }: ExcelImporterProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {previewRows.slice(0, 10).map((r, i) => {
-                        const parsedMonth = parseInt(r.parsed.date.split("-")[1] ?? "", 10);
-                        const mes = parseInt(r.rawMes, 10);
-                        const mismatch = Number.isFinite(mes) && Number.isFinite(parsedMonth) ? mes !== parsedMonth : false;
-
-                        return (
-                          <TableRow key={i} className={mismatch ? "bg-destructive/10" : undefined}>
-                            <TableCell className="text-xs font-mono">{r.parsed.date}</TableCell>
-                            <TableCell className="text-xs font-mono text-muted-foreground">{r.rawFecha}</TableCell>
-                            <TableCell className="text-xs text-center font-mono text-muted-foreground">{r.rawMes || "-"}</TableCell>
-                            <TableCell className="text-xs">{r.parsed.day_of_week}</TableCell>
-                            <TableCell className="text-xs">{r.parsed.entry_time}</TableCell>
-                            <TableCell>
-                              <Badge variant={r.parsed.trade_type === "Compra" ? "default" : "secondary"} className="text-xs">
-                                {r.parsed.trade_type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {r.parsed.entry_model}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={r.parsed.result_type === "TP" ? "default" : "destructive"} className="text-xs">
-                                {r.parsed.result_type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell
-                              className={`text-right text-xs font-mono ${r.parsed.result_dollars >= 0 ? "text-success" : "text-destructive"}`}
-                            >
-                              ${r.parsed.result_dollars.toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {previewRows.slice(0, 10).map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-xs font-mono">{r.parsed.date}</TableCell>
+                          <TableCell className="text-xs">{r.parsed.day_of_week}</TableCell>
+                          <TableCell className="text-xs">{r.parsed.entry_time}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.parsed.trade_type === "Compra" ? "default" : "secondary"} className="text-xs">
+                              {r.parsed.trade_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {r.parsed.entry_model}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={r.parsed.result_type === "TP" ? "default" : "destructive"} className="text-xs">
+                              {r.parsed.result_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell
+                            className={`text-right text-xs font-mono ${r.parsed.result_dollars >= 0 ? "text-success" : "text-destructive"}`}
+                          >
+                            ${r.parsed.result_dollars.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
